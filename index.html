@@ -725,7 +725,7 @@ H.toggleAlive=d=>{
   winCheck(s,se);
   return commit({S:s,SE:se});
 };
-H.again=()=>{const s=freshState(S);s.lobby=[];S=s;lastHTML='';render();syncLobby();return saveS()};
+H.again=()=>{const s=freshState(S);COPYBOX='';s.lobby=S.players.filter(p=>p.bot||p.manual).map(p=>{s.oseq=(s.oseq||0)+1;return {id:p.id,name:p.name,ord:s.oseq,bot:!!p.bot,manual:!!p.manual}});S=s;lastHTML='';render();syncLobby();return saveS()};
 // ходы за игроков без сайта
 H.mNight=(d,el)=>{const a=Object.assign({},NIGHT[d.id]&&act(d.id)?NIGHT[d.id]:{gid:S.gid,round:S.round});a[d.f]=el.value;a.t=Date.now();NIGHT[d.id]=a;return W('night/'+d.id,a)};
 H.mVote=(d,el)=>{const v={gid:S.gid,round:S.round,vr:S.vr,target:el.value,t:Date.now()};VOTES[d.id]=v;sched();return W('votes/'+d.id,v)};
@@ -1145,6 +1145,7 @@ H.p2pHost=async()=>{
   const sh=makeShim('host',newCode());
   try{await sh.startHost(null)}catch(e){MODE='choose';render();toast(e.message,true);return}
   lsSet('mf-host','');await p2pEnter(sh,'host');
+  if(!S)await guard(H.createGame);
 };
 H.p2pResume=async()=>{
   const sv=savedHost();if(!sv)return;
