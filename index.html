@@ -1,0 +1,1167 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}</style></head><body>
+<title>Мафия: комната</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:wght@700;900&display=swap">
+<style>
+/* Layout: тёмный прокуренный клуб. Сверху вывеска и строка фазы, ниже две колонки: слева действие текущей фазы и новости города, справа ваша карта и все места за столом. Роль выглядит как игральная карта. Сознательно одна тёмная тема. */
+:root{
+  --felt:#0f0c0d;--felt2:#070606;--rail:#120e0f;--rail2:#1e1718;
+  --panel:#181314;--panel2:#261e1f;--line:rgba(255,255,255,.09);
+  --fg:#efe6d4;--muted:#a3958d;--gold:#d4a94a;--gold-ink:#241903;
+  --card:#f1e9d6;--card-ink:#1b1712;--red:#b3261e;--red2:#e05a4f;--black:#1b1712;--town:#7fcfa8;
+  --f-display:"Playfair Display",Georgia,"Times New Roman",serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--felt2)}
+body{margin:0;min-height:100%;color:var(--fg);font:15px/1.55 var(--f-body);
+  background:radial-gradient(90% 55% at 50% -5%,rgba(150,32,26,.28) 0%,transparent 60%),radial-gradient(120% 80% at 50% 0%,#1a1416 0%,var(--felt) 45%,var(--felt2) 100%),var(--felt);background-attachment:fixed;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.35;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.wrap{max-width:1180px;margin:0 auto;position:relative}
+h1,h2,h3,p{margin:0}
+h2{font:700 1.2rem/1.25 var(--f-display);margin-bottom:12px;text-wrap:balance;letter-spacing:.01em}
+h3{font:600 .95rem/1.3 var(--f-body);margin-bottom:6px}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+.sign{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:22px 0 14px}
+.sign h1{font:900 clamp(2rem,6vw,3.2rem)/1 var(--f-display);letter-spacing:.02em;color:var(--card)}
+.sign h1 span{color:var(--red2)}
+.sign .sub{color:var(--muted);font-size:.9rem}
+.statusbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:10px 14px;margin-bottom:18px;border-radius:10px;background:linear-gradient(var(--rail2),var(--rail));box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 6px 16px -6px rgba(0,0,0,.7)}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.step{font:600 .78rem var(--f-body);padding:4px 10px;border-radius:999px;color:#c9b69a;border:1px solid rgba(216,181,90,.25)}
+.step.on{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.timer{font:700 1.5rem var(--f-mono);font-variant-numeric:tabular-nums;color:var(--gold);min-width:4.2ch;text-align:right}
+.pill{font:600 .78rem var(--f-body);padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.pill.ok{color:var(--town);border-color:rgba(121,208,168,.5)}
+.pill.wait{color:var(--gold);border-color:rgba(216,181,90,.6)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:20px;min-width:0}
+.panel{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(0,0,0,.08)),var(--panel);border:1px solid rgba(0,0,0,.35);border-radius:12px;padding:18px;min-width:0;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 24px -14px rgba(0,0,0,.8)}
+.panel.hot{border-color:rgba(216,181,90,.7);box-shadow:0 0 0 1px rgba(216,181,90,.25) inset,0 10px 24px -14px rgba(0,0,0,.8)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--line);min-width:0}
+.list>.row:first-child{border-top:0}
+.grow{flex:1 1 140px;min-width:0}
+.fields{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.stack{display:flex;flex-direction:column;gap:12px}
+
+.btn{font:600 .92rem/1.2 var(--f-body);padding:10px 16px;border-radius:8px;border:1px solid rgba(0,0,0,.4);background:var(--panel2);color:var(--fg);cursor:pointer;box-shadow:0 1px 0 rgba(255,255,255,.1) inset,0 2px 4px rgba(0,0,0,.4)}
+.btn:hover{filter:brightness(1.12)}
+.btn.pri{background:var(--gold);color:var(--gold-ink);border-color:#a8873a}
+.btn.bad{background:var(--red);color:#fff;border-color:#7d1d17}
+.btn.sm{padding:6px 10px;font-size:.82rem}
+.btn.ghost{background:transparent;border-color:var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+input,select,textarea{background:#0b0909;color:var(--fg);border:1px solid rgba(0,0,0,.5);border-radius:8px;padding:9px 10px;font:inherit;min-width:0;max-width:100%;box-shadow:0 2px 4px rgba(0,0,0,.5) inset}
+input[type=number]{width:80px}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--gold);padding:0}
+textarea{width:100%;font:.85rem/1.5 var(--f-mono);min-height:120px}
+label{display:flex;flex-direction:column;gap:5px;font-size:.82rem;color:var(--muted)}
+label.inl{flex-direction:row;align-items:center;gap:8px;color:var(--fg);font-size:.92rem}
+.codein{text-transform:uppercase;letter-spacing:.2em;font-family:var(--f-mono);width:150px}
+.roomcode{font:700 clamp(2rem,7vw,3rem)/1 var(--f-mono);letter-spacing:.3em;text-align:center;color:var(--gold);background:#060505;border-radius:10px;padding:14px 10px 14px 24px;margin-bottom:12px;user-select:all;box-shadow:0 2px 8px rgba(0,0,0,.7) inset}
+.note{border:1px dashed rgba(255,255,255,.25);border-radius:8px;padding:10px 12px;color:var(--muted);font-size:.88rem}
+ol.howto{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+
+.seat{flex:none;font:700 .85rem var(--f-mono);min-width:34px;height:30px;display:inline-grid;place-items:center;border-radius:6px;background:var(--card);color:var(--card-ink);box-shadow:0 1px 2px rgba(0,0,0,.5)}
+.dead .seat{background:#7c8a82}
+.dead .pname{text-decoration:line-through;opacity:.6}
+.pname{font-weight:600;overflow-wrap:anywhere}
+.tag{font:600 .74rem var(--f-body);padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.gold{color:var(--gold);border-color:rgba(216,181,90,.6)}
+.tag.red{color:#ffb3ab;border-color:rgba(224,88,78,.6)}
+.role{display:inline-block;font:700 .74rem var(--f-body);padding:2px 9px;border-radius:999px;white-space:nowrap}
+.role.m{background:#2a1d18;color:#ffb3ab;border:1px solid rgba(224,88,78,.6)}
+.role.t{background:#10251e;color:var(--town);border:1px solid rgba(121,208,168,.45)}
+.speaking{background:rgba(216,181,90,.12);border-radius:8px;padding-inline:8px;margin-inline:-8px}
+.bar{height:8px;border-radius:4px;background:var(--red2);min-width:4px}
+
+.vbtn{font:600 .9rem var(--f-body);padding:8px 12px;border-radius:8px;border:1px solid rgba(0,0,0,.4);background:var(--panel2);color:var(--fg);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.vbtn .seat{height:24px;min-width:28px;font-size:.78rem}
+.vbtn.on{background:var(--gold);color:var(--gold-ink)}
+.vbtns{display:flex;flex-wrap:wrap;gap:8px}
+
+.news p{padding:8px 0;border-top:1px solid var(--line)}
+.news p:first-child{border-top:0}
+.news b{display:block;font:600 .74rem var(--f-body);color:var(--gold);text-transform:uppercase;letter-spacing:.08em}
+.result{font:700 1.15rem/1.35 var(--f-display);padding:12px 14px;border-radius:10px;background:rgba(0,0,0,.2);border-left:3px solid var(--gold)}
+
+/* игральная карта с ролью */
+.pcard{position:relative;width:min(100%,300px);aspect-ratio:5/7;margin:0 auto;border-radius:14px;background:var(--card);color:var(--card-ink);box-shadow:0 0 0 1px rgba(0,0,0,.4),0 18px 34px -12px rgba(0,0,0,.85);padding:18px 18px 16px;display:flex;flex-direction:column;overflow:hidden}
+.pcard::after{content:"";position:absolute;inset:8px;border:1px solid rgba(27,23,18,.25);border-radius:9px;pointer-events:none}
+.pcard.m{--suit:var(--black)}
+.pcard.t{--suit:var(--red)}
+.pcard .corner{font:900 1.15rem/1 var(--f-display);color:var(--suit);display:flex;flex-direction:column;align-items:center;width:max-content}
+.pcard .corner.br{position:absolute;right:18px;bottom:16px;transform:rotate(180deg)}
+.pcard .mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+.pcard .big{font-size:4.2rem;line-height:1;color:var(--suit)}
+.pcard .rname{font:900 1.6rem/1.1 var(--f-display)}
+.pcard .side{font:600 .72rem var(--f-body);text-transform:uppercase;letter-spacing:.12em;color:#6d6457}
+.pcard .num{font:700 .9rem var(--f-mono);color:#6d6457}
+.cardback{width:min(100%,300px);aspect-ratio:5/7;margin:0 auto;border-radius:14px;border:8px solid var(--card);display:grid;place-items:center;text-align:center;padding:16px;color:var(--card);font-weight:600;
+  background:repeating-linear-gradient(45deg,#7d1d17 0 8px,#962a22 8px 16px)}
+.roledesc{font-size:.9rem;margin-top:12px}
+.team{margin-top:10px;font-size:.9rem}
+
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--gold);color:var(--gold-ink);padding:10px 16px;border-radius:8px;font-weight:700;opacity:0;pointer-events:none;transition:.2s;max-width:90vw;z-index:9;box-shadow:0 10px 26px rgba(0,0,0,.7)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast.bad{background:var(--red);color:#fff}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+
+/* панель музыки */
+#snd{position:fixed;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:calc(100vw - 28px);
+  background:rgba(18,14,15,.94);border:1px solid rgba(212,169,74,.35);border-radius:14px;padding:8px 12px 8px 8px;box-shadow:0 10px 24px -8px rgba(0,0,0,.9)}
+#snd button{font:600 .88rem var(--f-body);border:0;border-radius:10px;padding:8px 12px;cursor:pointer;background:#2a2223;color:var(--fg)}
+#snd button.on{background:var(--gold);color:var(--gold-ink)}
+#snd .trk{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+#snd .trk b{font:600 .7rem var(--f-body);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+#snd .trk span{font-size:.86rem}
+#snd input[type=range]{width:90px;accent-color:var(--gold);padding:0;box-shadow:none;background:transparent;border:0}
+#snd.off .trk,#snd.off input{display:none}
+#snd #sndmin{background:transparent;color:var(--muted);font-size:1.2rem;line-height:1;padding:6px 8px}
+#snd #sndopen{display:none;width:44px;height:44px;padding:0;border-radius:50%;font-size:1.2rem}
+#snd.min{padding:0;border-radius:50%;background:transparent;border:0;box-shadow:none}
+#snd.min>*{display:none}
+#snd.min #sndopen{display:grid;place-items:center;box-shadow:0 8px 20px -6px rgba(0,0,0,.9);border:1px solid rgba(212,169,74,.4)}
+</style>
+
+<div class="wrap">
+  <header class="sign"><h1>Мафи<span>я</span></h1><p class="sub" id="subline">Классическая игра онлайн, до 20 игроков</p></header>
+  <div id="app"><p class="muted" style="padding:40px 0">Подключаюсь к игре…</p></div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ===== РОЛИ =====
+const ROLE={
+  mafia:{t:'Мафия',side:'m',suit:'♠',d:'Вы в мафии. Ночью вместе с командой выбираете, кого убить: жертвой становится тот, за кого больше голосов. Днём притворяйтесь мирным жителем.'},
+  don:{t:'Дон мафии',side:'m',suit:'♣',d:'Вы глава мафии. Ночью голосуете за жертву вместе с командой, при равенстве голосов решает ваш выбор. Ещё каждую ночь проверяете одного игрока: шериф он или нет.'},
+  sheriff:{t:'Шериф',side:'t',suit:'♦',d:'Вы на стороне города. Каждую ночь проверяете одного игрока и узнаёте, мафия он или мирный. Делитесь находками днём, но осторожно: мафия охотится за шерифом.'},
+  doctor:{t:'Доктор',side:'t',suit:'♥',d:'Вы на стороне города. Каждую ночь лечите одного игрока: если мафия выберет его, он выживет. Себя можно лечить один раз за игру. Одного игрока нельзя лечить две ночи подряд.'},
+  civ:{t:'Мирный житель',side:'t',suit:'♥',d:'Вы на стороне города. Ночью спите. Днём слушайте, выставляйте подозреваемых и голосуйте, чтобы выгнать мафию.'}
+};
+function suggest(n){
+  const total=Math.max(1,Math.round(n/4));
+  const don=n>=8?1:0;
+  return {mafia:total-don,don,sheriff:n>=6?1:0,doctor:n>=7?1:0};
+}
+
+// ===== РЕЖИМ ОБЫЧНОГО САЙТА: без сервера и без Claude =====
+// Ведущий создаёт комнату, его вкладка становится центром игры.
+// Игроки связываются с ней через публичные брокеры сообщений (MQTT поверх WebSocket, обычный HTTPS-порт).
+// «База данных» повторяет вызовы Claude (doc/collection/onSnapshot), поэтому код игры одинаков в обоих режимах.
+const NET={state:'',peers:0};
+const BROKERS=['wss://broker.hivemq.com:8884/mqtt','wss://broker.emqx.io:8084/mqtt','wss://test.mosquitto.org:8081/mqtt','wss://mqtt.eclipseprojects.io/mqtt'];
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const rid=n=>{const A='abcdefghijklmnopqrstuvwxyz0123456789';let s='';for(let i=0;i<n;i++)s+=A[Math.floor(Math.random()*A.length)];return s};
+const netTouch=()=>{try{if(typeof sched==='function')sched()}catch(e){}};
+const topicOf=(code,k)=>'mafia20/v1/'+code.toLowerCase()+'/'+k;
+function canRead(path,uid){
+  if(uid==='host')return true;
+  const q=path.split('/'),c=q[0];
+  if(c==='g'||c==='votes')return true;
+  if(c==='card'||c==='night'||c==='day'||c==='join')return q[1]===uid;
+  return false;
+}
+function canWrite(path,uid){
+  if(uid==='host')return true;
+  const q=path.split('/');
+  return ['join','night','day','votes'].includes(q[0])&&q[1]===uid&&q.length===2;
+}
+
+class MQ{
+  constructor(url){this.url=url;this.ws=null;this.open=false;this.subs=new Map();this.buf=new Uint8Array(0);this.onclose=null;this.ping=null;this.pid=1}
+  static str(s){const b=new TextEncoder().encode(s);const o=new Uint8Array(2+b.length);o[0]=b.length>>8;o[1]=b.length&255;o.set(b,2);return o}
+  static cat(...a){let n=0;a.forEach(x=>n+=x.length);const o=new Uint8Array(n);let k=0;a.forEach(x=>{o.set(x,k);k+=x.length});return o}
+  static pkt(h,body){const l=[];let n=body.length;do{let d=n%128;n=Math.floor(n/128);if(n>0)d|=128;l.push(d)}while(n>0);return MQ.cat(new Uint8Array([h]),new Uint8Array(l),body)}
+  connect(ms){
+    return new Promise((res,rej)=>{
+      let done=false;
+      const fin=(ok,err)=>{if(done)return;done=true;clearTimeout(t);if(ok)res();else{try{this.ws&&this.ws.close()}catch(e){}rej(err||new Error('fail'))}};
+      const t=setTimeout(()=>fin(false,new Error('timeout')),ms);
+      let ws;try{ws=new WebSocket(this.url,'mqtt')}catch(e){fin(false,e);return}
+      ws.binaryType='arraybuffer';this.ws=ws;
+      ws.onopen=()=>{ws.send(MQ.pkt(0x10,MQ.cat(MQ.str('MQTT'),new Uint8Array([4,2,0,30]),MQ.str('mf'+rid(14)))))};
+      ws.onmessage=e=>{
+        this.buf=MQ.cat(this.buf,new Uint8Array(e.data));
+        for(;;){
+          const b=this.buf;if(b.length<2)break;
+          let n=0,mul=1,i=1,d;
+          do{if(i>=b.length)return;d=b[i++];n+=(d&127)*mul;mul*=128;if(i>5)return}while(d&128);
+          if(b.length<i+n)break;
+          const body=b.slice(i,i+n),type=b[0]>>4,flags=b[0]&15;
+          this.buf=b.slice(i+n);
+          if(type===2){if(body[1]===0){this.open=true;this.ping=setInterval(()=>{try{ws.send(new Uint8Array([0xC0,0]))}catch(e){}},20000);fin(true)}else fin(false,new Error('refused'))}
+          else if(type===3){
+            const tl=(body[0]<<8)|body[1];let k=2+tl;const topic=new TextDecoder().decode(body.slice(2,k));const q=(flags>>1)&3;
+            if(q>0){const id=body.slice(k,k+2);k+=2;if(q===1){try{ws.send(new Uint8Array([0x40,2,id[0],id[1]]))}catch(e){}}}
+            const cb=this.subs.get(topic);
+            if(cb){let m=null;try{m=JSON.parse(new TextDecoder().decode(body.slice(k)))}catch(e){}if(m)try{cb(m)}catch(e){console.error(e)}}
+          }
+        }
+      };
+      ws.onerror=()=>{};
+      ws.onclose=()=>{const was=this.open;this.open=false;clearInterval(this.ping);if(!done)fin(false,new Error('closed'));else if(was&&this.onclose)this.onclose()};
+    });
+  }
+  sub(topic,cb){this.subs.set(topic,cb);const id=this.pid++;this.ws.send(MQ.pkt(0x82,MQ.cat(new Uint8Array([id>>8&255,id&255]),MQ.str(topic),new Uint8Array([0]))))}
+  pub(topic,obj){if(!this.open)return false;try{this.ws.send(MQ.pkt(0x30,MQ.cat(MQ.str(topic),new TextEncoder().encode(JSON.stringify(obj)))));return true}catch(e){return false}}
+  close(){this.onclose=null;this.open=false;clearInterval(this.ping);try{this.ws.close()}catch(e){}}
+}
+
+function makeShim(role,code){
+  const store=new Map(),docL={},colL={},toks={};
+  const conns=new Map();
+  let ready=role==='host',waiters=[];
+  const seg=p=>p.split('/');
+  const snapDoc=p=>({id:seg(p)[1],exists:store.has(p),data:()=>store.get(p)});
+  const colDocs=c=>[...store.keys()].filter(k=>k.startsWith(c+'/')&&seg(k).length===2).map(k=>({id:k.slice(c.length+1),data:()=>store.get(k)}));
+  const fireDoc=p=>{(docL[p]||[]).forEach(f=>{try{f(snapDoc(p))}catch(e){console.error(e)}})};
+  const fireCol=c=>{(colL[c]||[]).forEach(f=>{try{f({docs:colDocs(c)})}catch(e){console.error(e)}})};
+  const applyLocal=(p,d)=>{if(d==null)store.delete(p);else store.set(p,d);fireDoc(p);fireCol(seg(p)[0])};
+  const whenReady=f=>{if(ready)f();else waiters.push(f)};
+  let uidv=lsGet('mf-uid'),tokv=lsGet('mf-tok');
+  if(!/^p[a-z0-9]{10}$/.test(uidv||'')){uidv='p'+rid(10);lsSet('mf-uid',uidv)}
+  if(!tokv||tokv.length<16){tokv=rid(24);lsSet('mf-tok',tokv)}
+  const UIDX=uidv,TOK=tokv;
+
+  const links=[];
+  let pt=null;
+  const persist=()=>{if(role!=='host'||pt)return;pt=setTimeout(()=>{pt=null;lsSet('mf-host',JSON.stringify({code,store:[...store.entries()],toks}))},350)};
+  const openLink=()=>links.find(l=>l.mq&&l.mq.open);
+  const sendTo=(uid,msg)=>{const c=conns.get(uid);const l=(c&&c.link&&c.link.mq&&c.link.mq.open)?c.link:openLink();if(l)l.mq.pub(topicOf(code,'d/'+uid),msg)};
+  const refreshPeers=()=>{const now=Date.now();let n=0;conns.forEach(c=>{if(now-c.t<75000)n++});if(NET.peers!==n){NET.peers=n;netTouch()}};
+  const hostWrite=(p,d)=>{
+    if(d!=null)d=JSON.parse(JSON.stringify(d));
+    applyLocal(p,d);
+    const now=Date.now();
+    conns.forEach((c,uid)=>{if(now-c.t<600000&&canRead(p,uid))sendTo(uid,{t:'u',p,d:d==null?null:d})});
+    persist();
+  };
+  function hostHandle(link,m){
+    if(!m||typeof m.u!=='string'||!/^p[a-z0-9]{10}$/.test(m.u)||typeof m.k!=='string'||m.k.length<8)return;
+    const uid=m.u;
+    if(toks[uid]&&toks[uid]!==m.k){link.mq.pub(topicOf(code,'d/'+uid),{t:'bad'});return}
+    if(m.t==='hi'){
+      if(!toks[uid]){toks[uid]=m.k;persist()}
+      conns.set(uid,{t:Date.now(),link});refreshPeers();
+      link.mq.pub(topicOf(code,'d/'+uid),{t:'snap',docs:[...store.entries()].filter(e=>canRead(e[0],uid))});
+      return;
+    }
+    if(!toks[uid])return;
+    const c=conns.get(uid)||{};c.t=Date.now();c.link=link;conns.set(uid,c);
+    if(typeof m.p!=='string')return;
+    if(!canWrite(m.p,uid)){sendTo(uid,{t:'err',p:m.p});return}
+    if(m.t==='set')hostWrite(m.p,m.d);else if(m.t==='del')hostWrite(m.p,null);
+  }
+  const updNet=()=>{NET.state=openLink()?'ok':'lost';netTouch()};
+  function startLink(url){
+    const l={url,mq:null,okOnce:false};links.push(l);
+    const go=async()=>{
+      const mq=new MQ(url);
+      try{await mq.connect(8000)}catch(e){setTimeout(go,l.okOnce?3000:8000);return}
+      l.mq=mq;l.okOnce=true;
+      mq.sub(topicOf(code,'up'),m=>hostHandle(l,m));
+      mq.onclose=()=>{updNet();setTimeout(go,2500)};
+      updNet();
+    };
+    l.go=go;return l;
+  }
+
+  const pend=new Map();
+  let cur=null;
+  const needConn=()=>{if(!cur||!cur.open)throw new Error('Нет связи с ведущим. Подождите, идёт переподключение.')};
+  const upSend=m=>{if(cur&&cur.open)cur.pub(topicOf(code,'up'),Object.assign({u:UIDX,k:TOK},m))};
+  const db={
+    doc:p=>({
+      set:async d=>{
+        d=JSON.parse(JSON.stringify(d));
+        if(role==='host'){hostWrite(p,d);return}
+        needConn();
+        pend.set(p,{t:'set',p,d});upSend({t:'set',p,d});applyLocal(p,d);
+      },
+      delete:async()=>{
+        if(role==='host'){hostWrite(p,null);return}
+        needConn();
+        pend.set(p,{t:'del',p});upSend({t:'del',p});applyLocal(p,null);
+      },
+      get:async()=>snapDoc(p),
+      onSnapshot:n=>{(docL[p]=docL[p]||[]).push(n);whenReady(()=>n(snapDoc(p)));return()=>{}}
+    }),
+    collection:c=>({onSnapshot:n=>{(colL[c]=colL[c]||[]).push(n);whenReady(()=>n({docs:colDocs(c)}));return()=>{}}})
+  };
+  return {
+    code,role,
+    use:async n=>{
+      if(n==='db')return db;
+      if(n==='user')return role==='host'?{isOwner:async()=>true,id:async()=>'host',can:async()=>true}:{isOwner:async()=>false,id:async()=>UIDX,can:async()=>true};
+      return null;
+    },
+    async startHost(restore){
+      if(typeof WebSocket==='undefined')throw new Error('Этот браузер не поддерживает нужную связь. Откройте игру в Chrome.');
+      if(restore){(restore.store||[]).forEach(e=>store.set(e[0],e[1]));Object.assign(toks,restore.toks||{})}
+      BROKERS.forEach(u=>startLink(u).go());
+      const t0=Date.now();
+      while(!openLink()){
+        if(Date.now()-t0>20000)throw new Error('Не удалось выйти в сеть: серверы связи недоступны. Проверьте интернет или попробуйте другую сеть.');
+        await new Promise(r=>setTimeout(r,150));
+      }
+      NET.state='ok';netTouch();
+      setInterval(()=>{refreshPeers();updNet()},5000);
+    },
+    async connectPlayer(){
+      if(typeof WebSocket==='undefined')throw new Error('Этот браузер не поддерживает нужную связь. Откройте игру в Chrome.');
+      let onSnapFirst=null,dead=false,idx=0;
+      const onDown=m=>{
+        if(!m)return;
+        if(m.t==='snap'){
+          store.clear();(m.docs||[]).forEach(e=>store.set(e[0],e[1]));
+          pend.forEach((v,p)=>{if(v.t==='set')store.set(p,v.d);else store.delete(p)});
+          ready=true;const w=waiters;waiters=[];w.forEach(f=>f());
+          Object.keys(docL).forEach(fireDoc);Object.keys(colL).forEach(fireCol);
+          NET.state='ok';netTouch();
+          pend.forEach(v=>upSend(v));
+          if(onSnapFirst){const f=onSnapFirst;onSnapFirst=null;f('snap')}
+        }else if(m.t==='u'){
+          applyLocal(m.p,m.d);
+          const pv=pend.get(m.p);
+          if(pv&&JSON.stringify(pv.d==null?null:pv.d)===JSON.stringify(m.d==null?null:m.d))pend.delete(m.p);
+        }else if(m.t==='bad'){
+          dead=true;NET.state='bad';netTouch();
+          if(onSnapFirst){const f=onSnapFirst;onSnapFirst=null;f('bad')}
+        }
+      };
+      const tryBroker=async i=>{
+        const mq=new MQ(BROKERS[i]);
+        await mq.connect(7000);
+        mq.sub(topicOf(code,'d/'+UIDX),onDown);
+        return mq;
+      };
+      const keepAlive=()=>{
+        const reconnect=async()=>{
+          if(dead)return;
+          NET.state='lost';netTouch();
+          for(let k=0;k<BROKERS.length&&!dead;k++){
+            const i=(idx+k)%BROKERS.length;
+            try{const mq=await tryBroker(i);idx=i;cur=mq;mq.onclose=reconnect;mq.pub(topicOf(code,'up'),{t:'hi',u:UIDX,k:TOK});return}catch(e){}
+          }
+          setTimeout(reconnect,3000);
+        };
+        cur.onclose=reconnect;
+        setInterval(()=>{if(cur&&cur.open)upSend({t:'hi'})},25000);
+        setInterval(()=>{if(cur&&cur.open)pend.forEach(v=>upSend(v))},4000);
+      };
+      let sawConn=false;
+      for(let i=0;i<BROKERS.length;i++){
+        let mq;
+        try{mq=await tryBroker(i)}catch(e){continue}
+        sawConn=true;
+        const r=await new Promise(res=>{
+          onSnapFirst=res;
+          mq.pub(topicOf(code,'up'),{t:'hi',u:UIDX,k:TOK});
+          setTimeout(()=>{if(onSnapFirst===res){onSnapFirst=null;res('none')}},6000);
+        });
+        if(r==='snap'){idx=i;cur=mq;keepAlive();return}
+        mq.close();
+        if(r==='bad')throw new Error('Это устройство не подошло: комната считает ваше место занятым другим браузером. Откройте игру в том же браузере, где вы вошли в первый раз.');
+      }
+      throw new Error(sawConn?'Не нашла комнату с таким кодом. Проверьте код и убедитесь, что ведущий открыл игру.':'Не удалось связаться с серверами игры. Проверьте интернет. Если включён VPN или корпоративная сеть, попробуйте выключить их или сменить сеть.');
+    }
+  };
+}
+
+// ===== ЯДРО =====
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone=x=>JSON.parse(JSON.stringify(x));
+const val=id=>{const e=document.getElementById(id);return e?e.value:''};
+function rnd(n){const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
+const newCode=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<5;i++)s+=A[rnd(A.length)];return s};
+
+let db=null,user=null,UID=null,IS_HOST=false,CAN_WRITE=null,MODE='boot',COPYBOX='',HIDE=lsGet('mf-hide')==='1';
+let S=null,SE=null,CARDS={},CARD=null,JOINS={},NIGHT={},DAY={},VOTES={},LASTC={};
+const H={};
+const P=id=>S?S.players.find(p=>p.id===id):null;
+const tag=p=>p?'№'+p.n+' '+p.name:'?';
+const alive=()=>S.players.filter(p=>p.alive);
+const intro=()=>S&&S.phase==='night'&&S.round===1&&S.cfg.peace;
+const roleOf=id=>SE&&SE.roles?SE.roles[id]:null;
+const sideOf=id=>{const r=roleOf(id);return r?ROLE[r].side:null};
+const isManual=id=>/^m/.test(id);
+
+const wq={};
+function W(path,data){const prev=wq[path]||Promise.resolve();const p=prev.catch(()=>{}).then(()=>db.doc(path).set(data));wq[path]=p;return p}
+function toast(m,bad){const t=$('#toast');t.textContent=m;t.className='on'+(bad?' bad':'');clearTimeout(toast.t);toast.t=setTimeout(()=>{t.className=''},3400)}
+function fail(e){console.error(e);const c=e&&e.code;toast(c==='invalid_argument'||c==='permission_denied'?'Нет права записи. Попросите ведущего выдать доступ с правом взаимодействия.':(e&&e.message?'Не получилось: '+e.message:'Не получилось сохранить'),true)}
+async function guard(fn){try{await fn()}catch(e){fail(e)}}
+
+async function saveS(){S.rev=(S.rev||0)+1;await W('g/state',S)}
+async function saveSE(){SE.rev=(SE.rev||0)+1;await W('host/secret',SE)}
+async function saveCards(C){for(const id of Object.keys(C)){const j=JSON.stringify(C[id]);if(LASTC[id]!==j){LASTC[id]=j;await W('card/'+id,C[id])}}}
+async function commit(res){
+  S=res.S;SE=res.SE;if(res.C)CARDS=res.C;
+  const C2=res.C?clone(res.C):null;
+  lastHTML='';render();
+  if(C2)await saveCards(C2);
+  await saveSE();await saveS();
+}
+
+let lastHTML='',RT=null;
+function sched(){if(RT)return;RT=setTimeout(()=>{RT=null;render()},40)}
+function render(){
+  try{soundSync()}catch(e){}
+  const root=$('#app');let html;
+  try{html=view()}catch(e){console.error(e);html='<p class="note">Ошибка отображения: '+esc(e.message)+'</p>'}
+  const sl=$('#subline');if(sl)sl.textContent=S&&S.code&&MODE==='ok'?'Комната '+S.code:'Классическая игра онлайн, до 20 игроков';
+  if(html===lastHTML)return;
+  lastHTML=html;
+  const keep={},kdef={};
+  root.querySelectorAll('input[id],select[id],textarea[id]').forEach(e=>{keep[e.id]=e.type==='checkbox'?e.checked:e.value;if(e.dataset.def!==undefined)kdef[e.id]=e.dataset.def});
+  const af=document.activeElement,fid=af&&af.id&&root.contains(af)?af.id:null;
+  const ss=fid&&af.selectionStart!=null?[af.selectionStart,af.selectionEnd]:null;
+  const sy=window.scrollY;
+  root.innerHTML=html;
+  Object.keys(keep).forEach(id=>{
+    const e=document.getElementById(id);if(!e||e.dataset.live!==undefined)return;
+    if(kdef[id]!==undefined&&keep[id]===kdef[id])return;
+    if(e.type==='checkbox')e.checked=keep[id];
+    else if(e.tagName==='SELECT'){if([].some.call(e.options,o=>o.value===keep[id]))e.value=keep[id]}
+    else e.value=keep[id];
+  });
+  if(fid){const e=document.getElementById(fid);if(e){try{e.focus();if(ss&&e.setSelectionRange)e.setSelectionRange(ss[0],ss[1])}catch(_){}}}
+  window.scrollTo(0,sy);tick();
+}
+function tick(){document.querySelectorAll('[data-end]').forEach(e=>{const s=Math.max(0,Math.round((+e.dataset.end-Date.now())/1000));e.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')})}
+setInterval(tick,1000);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const f=H[b.dataset.act];if(f)guard(()=>f(b.dataset,b))});
+document.addEventListener('change',e=>{const b=e.target.closest('[data-chg]');if(!b)return;const f=H[b.dataset.chg];if(f)guard(()=>f(b.dataset,b))});
+
+function adopt(d){if(IS_HOST){if(d&&(!S||(d.rev||0)>(S.rev||0)))S=d}else S=d}
+function onErr(e){console.error(e)}
+function snapMap(set){return q=>{const m={};q.docs.forEach(d=>{m[d.id]=d.data()});set(m);sched();if(IS_HOST)hostReact()}}
+function sub(){
+  db.doc('g/state').onSnapshot(s=>{adopt(s.exists?clone(s.data()):null);sched()},onErr);
+  db.collection('votes').onSnapshot(snapMap(m=>{VOTES=m}),onErr);
+  if(IS_HOST){
+    db.doc('host/secret').onSnapshot(s=>{const d=s.exists?clone(s.data()):null;if(d&&(!SE||(d.rev||0)>(SE.rev||0)))SE=d;sched()},onErr);
+    db.collection('card').onSnapshot(q=>{const m={};q.docs.forEach(d=>{m[d.id]=clone(d.data());LASTC[d.id]=JSON.stringify(m[d.id])});CARDS=m;sched()},onErr);
+    db.collection('join').onSnapshot(q=>{const m={};q.docs.forEach(d=>{m[d.id]=d.data()});JOINS=m;syncLobby();sched()},onErr);
+    db.collection('night').onSnapshot(snapMap(m=>{NIGHT=m}),onErr);
+    db.collection('day').onSnapshot(snapMap(m=>{DAY=m}),onErr);
+  }else{
+    db.doc('card/'+UID).onSnapshot(s=>{CARD=s.exists?clone(s.data()):null;sched()},onErr);
+    db.doc('night/'+UID).onSnapshot(s=>{if(s.exists)NIGHT[UID]=s.data();sched()},onErr);
+    db.doc('day/'+UID).onSnapshot(s=>{if(s.exists)DAY[UID]=s.data();sched()},onErr);
+    db.doc('join/'+UID).onSnapshot(s=>{if(s.exists)JOINS[UID]=s.data();sched()},onErr);
+  }
+}
+function syncLobby(){
+  if(!IS_HOST||!S||S.phase!=='lobby')return;
+  const old=S.lobby||[],ban=S.ban||[],out=[];
+  old.filter(x=>x.manual||x.bot).forEach(x=>out.push(x));
+  Object.keys(JOINS).forEach(id=>{
+    if(ban.includes(id))return;
+    const j=JOINS[id];if(!j||j.code!==S.code)return;
+    const nm=String(j.name||'').trim().slice(0,24)||'Игрок',ex=old.find(x=>x.id===id);
+    if(!ex){S.oseq=(S.oseq||0)+1;out.push({id,name:nm,ord:S.oseq})}
+    else out.push({id,name:nm,ord:ex.ord});
+  });
+  out.sort((a,b)=>a.ord-b.ord);
+  if(JSON.stringify(out)!==JSON.stringify(old)){S.lobby=out;guard(saveS)}
+}
+async function boot(){
+  render();
+  try{
+    const CL=window.claude;
+    if(!CL||!CL.use){MODE='choose';render();return}
+    user=await CL.use('user');db=await CL.use('db');
+    if(user){IS_HOST=await user.isOwner();UID=await user.id();CAN_WRITE=user.can?await user.can('data.write'):null}
+    if(!db){MODE='nodb';render();return}
+    if(!IS_HOST&&!UID){MODE='noid';render();return}
+    MODE='ok';sub();render();
+  }catch(e){console.error(e);MODE='nodb';render()}
+}
+
+// ===== ДЕЙСТВИЯ ИГРОКОВ: чтение =====
+const act=id=>{const a=NIGHT[id];return a&&S&&a.gid===S.gid&&a.round===S.round?a:null};
+const dayAct=id=>{const a=DAY[id];return a&&S&&a.gid===S.gid&&a.round===S.round?a:null};
+function tally(){
+  const m={};
+  if(!S)return m;
+  Object.keys(VOTES).forEach(id=>{
+    const v=VOTES[id];const p=P(id);
+    if(!v||!p||!p.alive||v.gid!==S.gid||v.round!==S.round||v.vr!==S.vr||!S.noms.includes(v.target))return;
+    (m[v.target]=m[v.target]||[]).push(id);
+  });
+  return m;
+}
+function order(s){const al=s.players.filter(p=>p.alive);if(!al.length)return[];const off=(s.round-1)%al.length;return al.slice(off).concat(al.slice(0,off)).map(p=>p.id)}
+
+// ===== ВЕДУЩИЙ: реакции на ходы игроков =====
+let reacting=false,again=false;
+async function hostReact(){
+  if(!IS_HOST||!S||!SE||!S.gid)return;
+  if(reacting){again=true;return}
+  reacting=true;
+  try{
+    const C=clone(CARDS);let cch=false,sch=false;
+    if(S.phase==='night'&&!intro()){
+      const picks={};
+      S.players.filter(p=>p.alive&&sideOf(p.id)==='m').forEach(p=>{const a=act(p.id);if(a&&a.kill)picks[p.id]=a.kill});
+      S.players.filter(p=>sideOf(p.id)==='m').forEach(p=>{const c=C[p.id];if(!c)return;const nv={round:S.round,picks};if(JSON.stringify(c.mv)!==JSON.stringify(nv)){c.mv=nv;cch=true}});
+      ['don','sheriff'].forEach(r=>{
+        const p=S.players.find(x=>x.alive&&roleOf(x.id)===r);if(!p)return;
+        const a=act(p.id),c=C[p.id];if(!a||!a.check||!c)return;
+        if(c.inbox.some(m=>m.round===S.round&&m.kind==='check'))return;
+        const t=P(a.check);if(!t||t.id===p.id)return;
+        const txt=r==='don'?(roleOf(t.id)==='sheriff'?tag(t)+' — шериф.':tag(t)+' — не шериф.'):(sideOf(t.id)==='m'?tag(t)+' — мафия.':tag(t)+' — мирный житель.');
+        c.inbox.push({round:S.round,kind:'check',target:t.id,text:txt});cch=true;
+      });
+    }
+    if(S.phase==='day'){
+      const by=S.nomBy.slice();
+      Object.keys(DAY).forEach(id=>{
+        const d=dayAct(id),p=P(id);if(!d||!d.nom||!p||!p.alive)return;
+        if(by.some(x=>x.by===id))return;
+        const t=P(d.nom);if(!t||!t.alive)return;
+        by.push({by:id,target:t.id});
+      });
+      if(by.length!==S.nomBy.length){
+        S.nomBy=by;
+        by.forEach(x=>{if(!S.noms.includes(x.target)&&!(S.nomOff||[]).includes(x.target))S.noms.push(x.target)});
+        sch=true;
+      }
+    }
+    if(cch){CARDS=C;await saveCards(C)}
+    if(sch){lastHTML='';render();await saveS()}
+  }catch(e){console.error(e)}
+  finally{reacting=false;if(again){again=false;hostReact()}}
+}
+
+// ===== ВЕДУЩИЙ: управление игрой =====
+function freshState(old){
+  return {v:1,gid:'',code:old&&old.code?old.code:(window.__p2p?window.__p2p.code:newCode()),rev:old?old.rev:0,phase:'lobby',round:0,
+    cfg:old?old.cfg:{peace:true,nightSec:60,speech:60,voteSec:45,roles:null},
+    players:[],lobby:[],ban:old?(old.ban||[]):[],oseq:old?(old.oseq||0):0,news:[],timerEnd:null,
+    order:[],spk:-1,noms:[],nomBy:[],nomOff:[],vr:1,result:null,winner:null,reveal:null};
+}
+H.createGame=async()=>{S=freshState(null);SE={rev:0,roles:{},lastHeal:null,selfHeal:false,hlog:[]};lastHTML='';render();await saveSE();await saveS();syncLobby()};
+function cfgRoles(n){return S.cfg.roles||suggest(n)}
+H.cfg=(d,el)=>{
+  const k=d.k;
+  if(['mafia','don','sheriff','doctor'].includes(k)){
+    const n=Math.min(20,S.lobby.length);const r=Object.assign({},cfgRoles(n));
+    r[k]=Math.max(0,Math.min(k==='mafia'?8:1,parseInt(el.value)||0));S.cfg.roles=r;
+  }else if(k==='peace')S.cfg.peace=el.checked;
+  else S.cfg[k]=Math.max(15,Math.min(600,parseInt(el.value)||S.cfg[k]));
+  lastHTML='';render();return saveS();
+};
+H.autoRoles=()=>{S.cfg.roles=null;lastHTML='';render();return saveS()};
+H.kick=d=>{S.ban=(S.ban||[]).concat(d.id);S.lobby=S.lobby.filter(x=>x.id!==d.id);lastHTML='';render();return saveS()};
+H.addManual=()=>{
+  const nm=(val('mname')||'').trim().slice(0,24);if(!nm){toast('Введите имя',true);return}
+  S.oseq=(S.oseq||0)+1;S.lobby.push({id:'m'+rid(10),name:nm,ord:S.oseq,manual:true});
+  const e=document.getElementById('mname');if(e)e.value='';
+  lastHTML='';render();return saveS();
+};
+const BOTN=['Аня','Борис','Вика','Глеб','Даша','Егор','Женя','Зоя','Илья','Кира','Лёша','Маша','Ника','Оля','Паша','Рита','Саша','Таня','Уля','Федя'];
+H.addBots=d=>{
+  const want=d.n==='fill'?20-S.lobby.length:+d.n;let k=0;
+  for(const nm of BOTN){if(k>=want||S.lobby.length>=20)break;const name='Бот '+nm;if(S.lobby.some(x=>x.name===name))continue;S.oseq=(S.oseq||0)+1;S.lobby.push({id:'b'+rid(10),name,ord:S.oseq,bot:true});k++}
+  if(!k){toast('За столом уже 20 мест',true);return}
+  lastHTML='';render();return saveS();
+};
+H.dropBots=()=>{S.lobby=S.lobby.filter(x=>!x.bot);lastHTML='';render();return saveS()};
+// боты: ходят сами, ведущий только переключает фазы
+let botBusy=false;
+async function botTick(){
+  if(!IS_HOST||!S||!SE||!S.gid||botBusy||!['night','day','vote'].includes(S.phase))return;
+  botBusy=true;
+  try{
+    const bots=S.players.filter(p=>p.bot&&p.alive);if(!bots.length)return;
+    const al=alive(),pick=a=>a[rnd(a.length)];
+    if(S.phase==='night'&&!intro()){
+      for(const p of bots){
+        const r=roleOf(p.id);if(r==='civ'||act(p.id)||Math.random()<.5)continue;
+        const a={gid:S.gid,round:S.round,t:Date.now()},others=al.filter(x=>x.id!==p.id);
+        if(ROLE[r].side==='m'){
+          const tg=others.filter(x=>sideOf(x.id)!=='m');
+          const team=al.filter(x=>x.id!==p.id&&sideOf(x.id)==='m').map(x=>act(x.id)).filter(x=>x&&x.kill);
+          if(team.length&&Math.random()<.75)a.kill=team[0].kill;else if(tg.length)a.kill=pick(tg).id;
+        }
+        if(r==='don'||r==='sheriff'){const c=others.filter(x=>r==='don'?sideOf(x.id)!=='m':true);if(c.length)a.check=pick(c).id}
+        if(r==='doctor'){const c=al.filter(x=>x.id!==SE.lastHeal&&!(x.id===p.id&&SE.selfHeal));if(c.length)a.heal=pick(c).id}
+        NIGHT[p.id]=a;await W('night/'+p.id,a);
+      }
+    }
+    if(S.phase==='day'&&S.spk>=0){
+      for(const p of bots){
+        if(dayAct(p.id)||S.noms.length>=3||Math.random()<.85)continue;
+        const o=al.filter(x=>x.id!==p.id);if(!o.length)continue;
+        const d={gid:S.gid,round:S.round,nom:pick(o).id,t:Date.now()};DAY[p.id]=d;await W('day/'+p.id,d);
+      }
+    }
+    if(S.phase==='vote'){
+      for(const p of bots){
+        const v=VOTES[p.id];if(v&&v.gid===S.gid&&v.round===S.round&&v.vr===S.vr)continue;
+        if(Math.random()<.5)continue;
+        const c=S.noms.filter(x=>x!==p.id);if(!c.length)continue;
+        const nv={gid:S.gid,round:S.round,vr:S.vr,target:pick(c),t:Date.now()};VOTES[p.id]=nv;await W('votes/'+p.id,nv);
+      }
+      sched();
+    }
+  }catch(e){console.error(e)}
+  finally{botBusy=false}
+}
+setInterval(botTick,1200);
+H.start=async()=>{
+  const lob=S.lobby.slice(0,20),n=lob.length;
+  if(n<4){toast('Нужно минимум 4 игрока',true);return}
+  const r=cfgRoles(n);
+  const roles=[];for(let i=0;i<r.mafia;i++)roles.push('mafia');
+  if(r.don)roles.push('don');if(r.sheriff)roles.push('sheriff');if(r.doctor)roles.push('doctor');
+  if(roles.length>=n){toast('Особых ролей больше, чем игроков',true);return}
+  if(r.mafia+r.don<1){toast('Нужна хотя бы одна мафия',true);return}
+  while(roles.length<n)roles.push('civ');
+  shuffle(roles);
+  const s=clone(S),se={rev:SE?SE.rev:0,roles:{},lastHeal:null,selfHeal:false,hlog:[]},C={};
+  s.gid=rid(8);s.players=lob.map((x,i)=>({id:x.id,name:x.name,n:i+1,alive:true,manual:!!x.manual,bot:!!x.bot}));
+  s.players.forEach((p,i)=>{se.roles[p.id]=roles[i]});
+  s.players.forEach(p=>{
+    const role=se.roles[p.id],m=ROLE[role].side==='m';
+    C[p.id]={gid:s.gid,pid:p.id,n:p.n,role,team:m?s.players.filter(x=>x.id!==p.id&&ROLE[se.roles[x.id]].side==='m').map(x=>({id:x.id,role:se.roles[x.id]})):[],inbox:[],mv:null,lastHeal:null,selfUsed:false};
+  });
+  Object.assign(s,{phase:'night',round:1,news:[],timerEnd:Date.now()+s.cfg.nightSec*1000,order:[],spk:-1,noms:[],nomBy:[],nomOff:[],vr:1,result:null,winner:null,reveal:null});
+  s.news.push({round:1,text:'Игра началась: '+n+' игроков, мафии '+(r.mafia+r.don)+'. '+(s.cfg.peace?'Первая ночь ознакомительная: мафия знакомится, никто не погибает.':'Город засыпает.')});
+  se.hlog.push({round:1,text:'Роли розданы.'});
+  await commit({S:s,SE:se,C});
+};
+function winCheck(s,se){
+  const al=s.players.filter(p=>p.alive),m=al.filter(p=>ROLE[se.roles[p.id]].side==='m').length,t=al.length-m;
+  let w=null;if(m===0)w='t';else if(m>=t)w='m';
+  if(!w)return false;
+  s.phase='over';s.winner=w;s.reveal=clone(se.roles);s.timerEnd=null;
+  s.news.push({round:s.round,text:w==='m'?'Мафия захватила город. Победила мафия.':'Вся мафия раскрыта. Победил город.'});
+  return true;
+}
+H.morning=async()=>{
+  const s=clone(S),se=clone(SE),C=clone(CARDS),r=s.round;
+  if(r===1&&s.cfg.peace){
+    s.news.push({round:r,text:'Утро. Ознакомительная ночь прошла, все живы.'});
+  }else{
+    const maf=s.players.filter(p=>p.alive&&ROLE[se.roles[p.id]].side==='m');
+    const cnt={};maf.forEach(p=>{const a=act(p.id);const t=a&&a.kill&&s.players.find(x=>x.id===a.kill);if(t&&t.alive)cnt[t.id]=(cnt[t.id]||0)+1});
+    let kill=null;const ks=Object.keys(cnt);
+    if(ks.length){
+      const mx=Math.max(...ks.map(k=>cnt[k])),tops=ks.filter(k=>cnt[k]===mx);
+      if(tops.length===1)kill=tops[0];
+      else{const don=maf.find(p=>se.roles[p.id]==='don');const dk=don&&act(don.id)?act(don.id).kill:null;kill=tops.includes(dk)?dk:tops[rnd(tops.length)]}
+    }
+    const doc=s.players.find(p=>p.alive&&se.roles[p.id]==='doctor');let heal=null;
+    if(doc){const a=act(doc.id);if(a&&a.heal&&a.heal!==se.lastHeal&&!(a.heal===doc.id&&se.selfHeal))heal=a.heal}
+    se.lastHeal=heal;if(doc&&heal===doc.id)se.selfHeal=true;
+    if(doc&&C[doc.id]){C[doc.id].lastHeal=se.lastHeal;C[doc.id].selfUsed=se.selfHeal}
+    const nm=id=>tag(s.players.find(x=>x.id===id));
+    if(heal)se.hlog.push({round:r,text:'Доктор лечил '+nm(heal)+'.'});
+    if(kill&&kill!==heal){
+      const v=s.players.find(x=>x.id===kill);v.alive=false;
+      se.hlog.push({round:r,text:'Мафия убила '+nm(kill)+'.'});
+      s.news.push({round:r,text:'Ночь '+r+': убит игрок '+tag(v)+'. Последнее слово, 30 секунд.'});
+    }else{
+      se.hlog.push({round:r,text:kill?'Мафия стреляла в '+nm(kill)+', доктор спас.':'Мафия никого не выбрала.'});
+      s.news.push({round:r,text:'Ночь '+r+': никто не погиб.'});
+    }
+  }
+  s.phase='day';s.timerEnd=null;s.order=order(s);s.spk=-1;s.noms=[];s.nomBy=[];s.nomOff=[];s.vr=1;s.result=null;
+  winCheck(s,se);
+  await commit({S:s,SE:se,C});
+};
+H.speaker=d=>{
+  const s=clone(S);const len=s.order.length;
+  s.spk=Math.max(0,Math.min(len-1,s.spk+(+d.dir)));
+  s.timerEnd=Date.now()+s.cfg.speech*1000;
+  return commit({S:s,SE});
+};
+H.restartSpeech=()=>{const s=clone(S);s.timerEnd=Date.now()+s.cfg.speech*1000;return commit({S:s,SE})};
+H.unnom=d=>{const s=clone(S);s.noms=s.noms.filter(x=>x!==d.id);s.nomOff=(s.nomOff||[]).concat(d.id);return commit({S:s,SE})};
+H.hostNom=()=>{const id=val('hnom');if(!id)return;const s=clone(S);if(!s.noms.includes(id))s.noms.push(id);s.nomOff=(s.nomOff||[]).filter(x=>x!==id);return commit({S:s,SE})};
+H.toVote=()=>{const s=clone(S);s.phase='vote';s.timerEnd=Date.now()+s.cfg.voteSec*1000;return commit({S:s,SE})};
+H.closeVote=()=>{
+  const s=clone(S),se=clone(SE),t=tally();
+  let mx=0,tops=[];
+  s.noms.forEach(id=>{const v=(t[id]||[]).length;if(v>mx){mx=v;tops=[id]}else if(v===mx&&v>0)tops.push(id)});
+  if(mx===0){s.result={type:'none'};s.news.push({round:s.round,text:'День '+s.round+': никто не набрал голосов, город никого не выгнал.'})}
+  else if(tops.length===1){
+    const v=s.players.find(x=>x.id===tops[0]);v.alive=false;s.result={type:'out',id:v.id,votes:mx};
+    s.news.push({round:s.round,text:'День '+s.round+': город выгнал игрока '+tag(v)+' ('+mx+' гол.). Последнее слово, 30 секунд.'});
+    se.hlog.push({round:s.round,text:'Город выгнал '+tag(v)+', роль: '+ROLE[se.roles[v.id]].t+'.'});
+  }else{s.result={type:'tie',ids:tops,votes:mx}}
+  s.phase='result';s.timerEnd=null;
+  if(s.result.type==='out')winCheck(s,se);
+  return commit({S:s,SE:se});
+};
+H.revote=()=>{const s=clone(S);s.noms=s.result.ids.slice();s.vr++;s.result=null;s.phase='vote';s.timerEnd=Date.now()+s.cfg.voteSec*1000;return commit({S:s,SE})};
+H.noOne=()=>{const s=clone(S);s.result={type:'none'};s.news.push({round:s.round,text:'День '+s.round+': ничья, город никого не выгнал.'});return commit({S:s,SE})};
+H.toNight=()=>{const s=clone(S);s.round++;s.phase='night';s.result=null;s.noms=[];s.nomBy=[];s.timerEnd=Date.now()+s.cfg.nightSec*1000;return commit({S:s,SE})};
+H.toggleAlive=d=>{
+  const s=clone(S),se=clone(SE),p=s.players.find(x=>x.id===d.id);p.alive=!p.alive;
+  se.hlog.push({round:s.round,text:(p.alive?'Вернул в игру ':'Убрал из игры ')+tag(p)+'.'});
+  s.news.push({round:s.round,text:p.alive?'Игрок '+tag(p)+' вернулся в игру.':'Игрок '+tag(p)+' покинул игру.'});
+  if(s.phase==='day'){s.order=s.order.filter(id=>s.players.find(x=>x.id===id).alive);s.spk=Math.min(s.spk,s.order.length-1)}
+  winCheck(s,se);
+  return commit({S:s,SE:se});
+};
+H.again=()=>{const s=freshState(S);s.lobby=[];S=s;lastHTML='';render();syncLobby();return saveS()};
+// ходы за игроков без сайта
+H.mNight=(d,el)=>{const a=Object.assign({},NIGHT[d.id]&&act(d.id)?NIGHT[d.id]:{gid:S.gid,round:S.round});a[d.f]=el.value;a.t=Date.now();NIGHT[d.id]=a;return W('night/'+d.id,a)};
+H.mVote=(d,el)=>{const v={gid:S.gid,round:S.round,vr:S.vr,target:el.value,t:Date.now()};VOTES[d.id]=v;sched();return W('votes/'+d.id,v)};
+H.copyCard=d=>copyText(cardText(d.id),'Текст роли скопирован');
+function cardText(id){
+  const p=P(id),r=roleOf(id),ro=ROLE[r];
+  let t='МАФИЯ. Ваша роль (никому не показывайте)\n\n'+p.name+', ваш номер в игре: '+p.n+'.\nРоль: '+ro.t+'.\n'+ro.d+'\n';
+  if(ro.side==='m'){const team=S.players.filter(x=>x.id!==id&&sideOf(x.id)==='m');if(team.length)t+='\nВаша команда: '+team.map(x=>tag(x)+(roleOf(x.id)==='don'?' (дон)':'')).join(', ')+'.\n'}
+  t+='\nНочные ходы присылайте ведущему в личные сообщения.';
+  return t;
+}
+function copyText(text,ok){
+  const done=()=>toast(ok||'Скопировано');
+  const fb=()=>{COPYBOX=text;lastHTML='';render();toast('Скопируйте текст из поля ниже',true)};
+  try{navigator.clipboard.writeText(text).then(done,fb)}catch(e){fb()}
+}
+H.closeCopy=()=>{COPYBOX='';lastHTML='';render()};
+H.copyInvite=()=>{
+  if(window.__p2p&&location.protocol==='file:'){copyText('Играем в мафию! Откройте файл игры (я его прислала) в браузере Chrome, нажмите «Я игрок» и введите код комнаты: '+S.code+'\nПотом введите своё имя и ждите начала.','Приглашение скопировано');return}
+  if(window.__p2p){const u=location.href.split('#')[0].split('?')[0]+'#'+S.code;copyText('Играем в мафию! Откройте ссылку: '+u+'\nКод комнаты: '+S.code+'\nВведите код (если он не подставился) и своё имя, потом ждите начала.','Приглашение скопировано');return}
+  let u='';try{u=(window.top!==window?document.referrer:'')||location.href}catch(e){u=location.href}
+  copyText('Играем в мафию! Откройте ссылку: '+u+'\nКод комнаты: '+S.code+'\nВведите код и своё имя, потом ждите начала.','Приглашение скопировано');
+};
+
+// ===== ОБЩИЕ БЛОКИ =====
+const PH={lobby:'Сбор игроков',night:'Ночь',day:'День',vote:'Голосование',result:'Итог дня',over:'Конец игры'};
+const roleBadge=r=>'<span class="role '+ROLE[r].side+'">'+esc(ROLE[r].t)+'</span>';
+function netPill(){
+  if(!window.__p2p)return '';
+  const st=NET.state;
+  if(window.__p2p.role==='host')return '<span class="pill '+(st==='ok'?'ok':'wait')+'">'+(st==='ok'?'Игроков на связи: '+NET.peers:'Нет сети, переподключаюсь…')+'</span>';
+  return '<span class="pill '+(st==='ok'?'ok':'wait')+'">'+(st==='ok'?'Связь с ведущим есть':'Связь потеряна, переподключаюсь…')+'</span>';
+}
+function topbar(){
+  let st='';
+  if(S){
+    if(S.phase==='lobby'||S.phase==='over')st='<span class="step on">'+PH[S.phase]+'</span>';
+    else st=['night','day','vote','result'].map(k=>'<span class="step'+(S.phase===k?' on':'')+'">'+PH[k]+'</span>').join('');
+  }
+  const rd=S&&S.phase!=='lobby'?'<span class="mono muted">Круг '+S.round+'</span>':'';
+  const tm=S&&S.timerEnd&&['night','day','vote'].includes(S.phase)?'<span class="timer" data-end="'+S.timerEnd+'">0:00</span>':'';
+  return '<div class="statusbar"><div class="steps">'+st+'</div>'+rd+netPill()+tm+'</div>';
+}
+function copyBox(){return COPYBOX?'<section class="panel hot"><h2>Текст для копирования</h2><textarea readonly id="copybox" data-live>'+esc(COPYBOX)+'</textarea><div class="fields" style="margin-top:10px"><button class="btn sm" data-act="closeCopy">Закрыть</button></div></section>':''}
+function newsPanel(){
+  const items=S.news.slice().reverse();
+  return '<section class="panel"><h2>Новости города</h2>'+(items.length?'<div class="news">'+items.map(x=>'<p><b>Круг '+x.round+'</b>'+esc(x.text)+'</p>').join('')+'</div>':'<p class="muted">Пока тихо.</p>')+'</section>';
+}
+function playersPanel(){
+  const t=S.phase==='vote'||S.phase==='result'?tally():{};
+  const spk=S.phase==='day'&&S.spk>=0?S.order[S.spk]:null;
+  const host=IS_HOST;
+  const rows=S.players.map(p=>{
+    let tags='';
+    if(!p.alive)tags+='<span class="tag">выбыл</span>';
+    if(p.id===spk)tags+='<span class="tag gold">говорит</span>';
+    if((S.phase==='day'||S.phase==='vote')&&S.noms.includes(p.id)){const by=S.nomBy.filter(x=>x.target===p.id).map(x=>'№'+(P(x.by)||{}).n);tags+='<span class="tag red">выставлен'+(by.length?' ('+by.join(', ')+')':'')+'</span>'}
+    if(S.phase==='vote'&&S.noms.includes(p.id))tags+='<span class="tag gold">'+(t[p.id]||[]).length+' гол.</span>';
+    if(S.reveal&&S.reveal[p.id])tags+=roleBadge(S.reveal[p.id]);
+    else if(host&&roleOf(p.id))tags+=roleBadge(roleOf(p.id));
+    if(host&&p.manual)tags+='<span class="tag">без сайта</span>';
+    if(host&&p.bot)tags+='<span class="tag gold">бот</span>';
+    const tools=host&&S.phase!=='over'?'<button class="btn sm ghost" data-act="toggleAlive" data-id="'+p.id+'">'+(p.alive?'Убрать':'Вернуть')+'</button>'+(p.manual?'<button class="btn sm ghost" data-act="copyCard" data-id="'+p.id+'">Текст роли</button>':''):'';
+    return '<div class="row'+(p.alive?'':' dead')+(p.id===spk?' speaking':'')+'"><span class="seat">'+p.n+'</span><span class="pname grow">'+esc(p.name)+(p.id===UID?' <span class="muted">(вы)</span>':'')+'</span>'+tags+tools+'</div>';
+  }).join('');
+  return '<section class="panel"><h2>За столом</h2><p class="small muted" style="margin-bottom:6px">Живых: '+alive().length+' из '+S.players.length+'</p><div class="list">'+rows+'</div></section>';
+}
+function opts(list,v,dis){
+  return '<option value="">— выберите —</option>'+list.map(p=>{const d=dis?dis(p):'';return '<option value="'+p.id+'"'+(v===p.id?' selected':'')+(d?' disabled':'')+'>№'+p.n+' '+esc(p.name)+(d?' ('+d+')':'')+'</option>'}).join('');
+}
+
+// ===== ВЕДУЩИЙ: экраны =====
+function hostCreate(){
+  return '<section class="panel hot"><h2>Новая игра</h2><p style="margin-bottom:14px">Создайте комнату, затем отправьте участникам приглашение. Они откроют игру, введут код и своё имя. Эту вкладку держите открытой всю игру: итоги ночей считает она.</p><button class="btn pri" data-act="createGame">Создать комнату</button></section>';
+}
+function hostLobby(){
+  const n=Math.min(20,S.lobby.length),r=cfgRoles(Math.max(n,4)),rec=suggest(Math.max(n,4));
+  const special=r.mafia+r.don+r.sheriff+r.doctor,civ=n-special;
+  const inp=(k,lab,max)=>'<label>'+lab+'<input type="number" id="c-'+k+'" data-chg="cfg" data-k="'+k+'" min="0" max="'+max+'" value="'+r[k]+'" data-live></label>';
+  let L='<div class="col"><section class="panel hot"><h2>Комната</h2><div class="roomcode">'+esc(S.code)+'</div>';
+  L+='<p style="margin-bottom:12px">Отправьте приглашение в общий чат. Игроки введут этот код и своё имя и появятся в списке справа.</p><div class="fields"><button class="btn pri" data-act="copyInvite">Скопировать приглашение</button></div></section>';
+  L+=copyBox();
+  L+='<section class="panel"><h2>Роли</h2><div class="fields">'+inp('mafia','Мафия',8)+inp('don','Дон',1)+inp('sheriff','Шериф',1)+inp('doctor','Доктор',1)+'<label>Мирные<span class="mono" style="font-size:1.4rem;color:var(--fg)">'+Math.max(0,civ)+'</span></label></div>';
+  L+='<p class="small muted" style="margin-top:10px">'+(S.cfg.roles?'Свой расклад. Рекомендация для '+Math.max(n,4)+' игроков: мафия '+rec.mafia+', дон '+rec.don+', шериф '+rec.sheriff+', доктор '+rec.doctor+'. <button class="btn sm ghost" data-act="autoRoles">Вернуть рекомендацию</button>':'Расклад подбирается сам под число игроков.')+'</p>';
+  L+='<h3 style="margin-top:16px">Время</h3><div class="fields"><label>Ночь, сек<input type="number" id="c-night" data-chg="cfg" data-k="nightSec" min="15" value="'+S.cfg.nightSec+'" data-live></label><label>Речь, сек<input type="number" id="c-speech" data-chg="cfg" data-k="speech" min="15" value="'+S.cfg.speech+'" data-live></label><label>Голосование, сек<input type="number" id="c-vote" data-chg="cfg" data-k="voteSec" min="15" value="'+S.cfg.voteSec+'" data-live></label></div>';
+  L+='<label class="inl" style="margin-top:12px"><input type="checkbox" id="c-peace" data-chg="cfg" data-k="peace" '+(S.cfg.peace?'checked':'')+' data-live> Первая ночь ознакомительная (мафия знакомится, никто не погибает)</label>';
+  const warn=n<4?'Нужно минимум 4 игрока.':civ<1?'Особых ролей больше, чем игроков.':S.lobby.length>20?'В списке больше 20 человек: в игру попадут первые 20.':'';
+  L+=(warn?'<p class="note" style="margin-top:12px">'+warn+'</p>':'')+'<div class="fields" style="margin-top:14px"><button class="btn pri" data-act="start"'+(n<4||civ<1?' disabled':'')+'>Раздать роли и начать</button></div></section></div>';
+  let R='<div class="col"><section class="panel"><h2>Игроки ('+S.lobby.length+' из 20)</h2>';
+  R+=S.lobby.length?'<div class="list">'+S.lobby.map((x,i)=>'<div class="row"><span class="seat">'+(i+1)+'</span><span class="pname grow">'+esc(x.name)+'</span>'+(x.bot?'<span class="tag gold">бот</span>':x.manual?'<span class="tag">без сайта</span>':'')+'<button class="btn sm ghost" data-act="kick" data-id="'+x.id+'">Убрать</button></div>').join('')+'</div>':'<p class="muted">Пока никого. Как только игроки введут код и имя, они появятся здесь.</p>';
+  R+='<p class="small muted" style="margin-top:10px">Номера за столом идут по порядку входа. Роли раздаются случайно.</p></section>';
+  const nb=S.lobby.filter(x=>x.bot).length;
+  R+='<section class="panel"><h2>Проба с ботами</h2><p class="small muted" style="margin-bottom:10px">Боты сами делают ночные ходы, выставляют кандидатов и голосуют. Вы только переключаете фазы. Так можно пройти всю партию одной.</p><div class="fields"><button class="btn" data-act="addBots" data-n="5">Добавить 5 ботов</button><button class="btn" data-act="addBots" data-n="fill">Заполнить до 20</button>'+(nb?'<button class="btn ghost" data-act="dropBots">Убрать ботов ('+nb+')</button>':'')+'</div></section>';
+  R+='<section class="panel"><h2>Кто-то не смог зайти?</h2><p class="small muted" style="margin-bottom:10px">Добавьте его вручную. После старта скопируете ему текст роли, а его ходы и голос будете вносить сами.</p><div class="fields"><label class="grow">Имя<input id="mname" maxlength="24" placeholder="Имя игрока"></label><button class="btn" data-act="addManual">Добавить</button></div></section>';
+  R+='<section class="panel"><h2>Как играть</h2><ol class="howto small"><li>Все сидят в звонке (Zoom, Телемост, Meet) с камерами.</li><li>Попросите каждого переименоваться в звонке по номеру за столом: «7 Аня».</li><li>Ночью все молчат и делают ходы на своих экранах. Мафия видит выбор своей команды.</li><li>Днём вы переключаете говорящих, игроки выставляют кандидатов кнопкой.</li><li>Голосование открытое, на экране видно, кто сколько набрал.</li></ol></section></div>';
+  return '<div class="grid">'+L+R+'</div>';
+}
+function manualSel(p,f,list,dis){
+  const a=act(p.id);return '<select id="mn-'+f+'-'+p.id+'" data-chg="mNight" data-id="'+p.id+'" data-f="'+f+'">'+opts(list,a?a[f]:'',dis)+'</select>';
+}
+function hostNight(){
+  const al=alive(),r=id=>roleOf(id);
+  let h='<section class="panel hot"><h2>Ночь '+S.round+'</h2>';
+  if(intro()){
+    h+='<p>Ознакомительная ночь. Мафия видит свою команду на экранах. Ходов нет. Когда время выйдет, объявите утро.</p>';
+  }else{
+    const maf=al.filter(p=>sideOf(p.id)==='m');
+    const cnt={};maf.forEach(p=>{const a=act(p.id);if(a&&a.kill)cnt[a.kill]=(cnt[a.kill]||0)+1});
+    h+='<h3>Мафия</h3><div class="list">'+maf.map(p=>{const a=act(p.id);return '<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+' '+roleBadge(r(p.id))+'</span>'+(p.manual?manualSel(p,'kill',al.filter(x=>x.id!==p.id)):'<span class="'+(a&&a.kill?'':'muted')+'">'+(a&&a.kill?'→ '+esc(tag(P(a.kill))):'ещё не выбрал')+'</span>')+'</div>'}).join('')+'</div>';
+    const ks=Object.keys(cnt);
+    if(ks.length)h+='<p class="small" style="margin:6px 0 14px">Голоса мафии: '+ks.map(k=>esc(tag(P(k)))+' — '+cnt[k]).join('; ')+'</p>';
+    ['don','sheriff','doctor'].forEach(role=>{
+      const p=al.find(x=>r(x.id)===role);if(!p)return;
+      const a=act(p.id),f=role==='doctor'?'heal':'check';
+      const c=CARDS[p.id],ans=c&&c.inbox.find(m=>m.round===S.round&&m.kind==='check');
+      let st;
+      if(p.manual){
+        st=manualSel(p,f,role==='doctor'?al:al.filter(x=>x.id!==p.id),role==='doctor'?(x=>x.id===SE.lastHeal?'лечил прошлой ночью':(x.id===p.id&&SE.selfHeal?'себя уже лечил':'')):null);
+        if(ans)st+='<span class="small">Ответ: '+esc(ans.text)+'</span>';
+      }else st=a&&a[f]?'→ '+esc(tag(P(a[f])))+(ans?' · ответ: '+esc(ans.text):''):'<span class="muted">ещё не выбрал</span>';
+      h+='<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+' '+roleBadge(role)+'</span>'+st+'</div>';
+    });
+  }
+  h+='<div class="fields" style="margin-top:14px"><button class="btn pri" data-act="morning">Наступает утро</button></div>';
+  return h+'</section>';
+}
+function hostDay(){
+  const len=S.order.length,cur=S.spk>=0?P(S.order[S.spk]):null,next=P(S.order[S.spk+1]);
+  let h='<section class="panel hot"><h2>День '+S.round+'</h2>';
+  const last=S.news[S.news.length-1];if(last)h+='<p class="result" style="margin-bottom:14px">'+esc(last.text)+'</p>';
+  h+='<h3>Речи</h3><p style="margin-bottom:10px">'+(cur?'Говорит <b>'+esc(tag(cur))+'</b> ('+(S.spk+1)+' из '+len+')'+(next?'<span class="muted"> · следующий №'+next.n+'</span>':''):'Первым говорит <b>'+esc(tag(P(S.order[0])))+'</b>. Нажмите «Следующий», чтобы запустить его время.')+'</p>';
+  h+='<div class="fields"><button class="btn" data-act="speaker" data-dir="-1"'+(S.spk<=0?' disabled':'')+'>Назад</button><button class="btn pri" data-act="speaker" data-dir="1"'+(S.spk>=len-1?' disabled':'')+'>'+(S.spk<0?'Начать речи':'Следующий')+'</button>'+(cur?'<button class="btn ghost" data-act="restartSpeech">Время заново</button>':'')+'</div>';
+  h+='<h3 style="margin-top:18px">Выставлены</h3>';
+  h+=S.noms.length?'<div class="list">'+S.noms.map(id=>{const p=P(id);return '<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+'</span><button class="btn sm ghost" data-act="unnom" data-id="'+id+'">Снять</button></div>'}).join('')+'</div>':'<p class="muted">Пока никого. Игроки выставляют кандидатов кнопкой у себя.</p>';
+  h+='<div class="fields" style="margin-top:10px"><label class="grow">Выставить за игрока<select id="hnom">'+opts(alive().filter(p=>!S.noms.includes(p.id)),'')+'</select></label><button class="btn" data-act="hostNom">Выставить</button></div>';
+  h+='<div class="fields" style="margin-top:16px">'+(S.noms.length?'<button class="btn pri" data-act="toVote">Открыть голосование</button>':'<button class="btn pri" data-act="toNight">Никого не выставили, наступает ночь</button>')+'</div>';
+  return h+'</section>';
+}
+function hostVote(){
+  const t=tally(),al=alive(),voted=al.filter(p=>VOTES[p.id]&&VOTES[p.id].gid===S.gid&&VOTES[p.id].round===S.round&&VOTES[p.id].vr===S.vr&&S.noms.includes(VOTES[p.id].target)).length;
+  let h='<section class="panel hot"><h2>Голосование'+(S.vr>1?' (переголосование)':'')+'</h2><p style="margin-bottom:10px">Проголосовали '+voted+' из '+al.length+'.</p>';
+  h+=tallyHTML(t);
+  const man=al.filter(p=>p.manual);
+  if(man.length)h+='<h3 style="margin-top:14px">Голоса игроков без сайта</h3><div class="list">'+man.map(p=>{const v=VOTES[p.id];const cur=v&&v.gid===S.gid&&v.round===S.round&&v.vr===S.vr?v.target:'';return '<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+'</span><select id="mv-'+p.id+'" data-chg="mVote" data-id="'+p.id+'">'+opts(S.noms.map(P),cur)+'</select></div>'}).join('')+'</div>';
+  h+='<div class="fields" style="margin-top:14px"><button class="btn pri" data-act="closeVote">Подвести итог</button></div>';
+  return h+'</section>';
+}
+function tallyHTML(t){
+  const mx=Math.max(1,...S.noms.map(id=>(t[id]||[]).length));
+  return '<div class="list">'+S.noms.map(id=>{const p=P(id),v=t[id]||[];return '<div class="row"><span class="seat">'+p.n+'</span><span class="grow"><span class="pname">'+esc(p.name)+'</span><div class="bar" style="width:'+(v.length/mx*100)+'%;margin-top:6px'+(v.length?'':';opacity:.25')+'"></div><span class="small muted">'+(v.length?'за: '+v.map(x=>'№'+P(x).n).join(', '):'нет голосов')+'</span></span><span class="mono" style="font-size:1.2rem">'+v.length+'</span></div>'}).join('')+'</div>';
+}
+function resultText(){
+  const r=S.result;if(!r)return '';
+  if(r.type==='out')return 'Город выгнал игрока '+tag(P(r.id))+' ('+r.votes+' гол.). Последнее слово, 30 секунд.';
+  if(r.type==='tie')return 'Ничья: '+r.ids.map(id=>tag(P(id))).join(', ')+' — по '+r.votes+' гол. Каждому 30 секунд на оправдание, затем переголосование.';
+  return 'Город никого не выгнал.';
+}
+function hostResult(){
+  let h='<section class="panel hot"><h2>Итог дня '+S.round+'</h2><p class="result" style="margin-bottom:14px">'+esc(resultText())+'</p><div class="fields">';
+  if(S.result&&S.result.type==='tie')h+='<button class="btn pri" data-act="revote">Переголосовать</button><button class="btn" data-act="noOne">Никто не выбывает</button>';
+  else h+='<button class="btn pri" data-act="toNight">Наступает ночь</button>';
+  return h+'</div></section>';
+}
+function overBanner(){
+  return '<section class="panel hot" style="text-align:center"><p class="small muted" style="text-transform:uppercase;letter-spacing:.1em">Игра окончена</p><p style="font:900 2rem/1.2 var(--f-display);margin:6px 0;color:'+(S.winner==='m'?'var(--red2)':'var(--town)')+'">'+(S.winner==='m'?'Победила мафия':'Победил город')+'</p><p class="muted">Роли раскрыты в списке игроков.</p>'+(IS_HOST?'<div class="fields" style="justify-content:center;margin-top:14px"><button class="btn pri" data-act="again">Новая партия с теми же игроками</button></div>':'')+'</section>';
+}
+function hostLog(){
+  const l=(SE&&SE.hlog||[]).slice().reverse();
+  return '<section class="panel"><h2>Журнал ведущего</h2><p class="small muted" style="margin-bottom:8px">Тут раскрыты роли и ночные ходы. Не показывайте этот экран.</p>'+(l.length?'<div class="news">'+l.map(x=>'<p><b>Круг '+x.round+'</b>'+esc(x.text)+'</p>').join('')+'</div>':'<p class="muted">Пусто.</p>')+'</section>';
+}
+function hostView(){
+  if(!SE)return topbar()+'<p class="muted">Загружаю…</p>';
+  if(S.phase==='lobby')return topbar()+hostLobby();
+  let main=S.phase==='night'?hostNight():S.phase==='day'?hostDay():S.phase==='vote'?hostVote():S.phase==='result'?hostResult():overBanner();
+  return topbar()+'<div class="grid"><div class="col">'+main+copyBox()+newsPanel()+'</div><div class="col">'+playersPanel()+hostLog()+'</div></div>';
+}
+
+// ===== ИГРОК: экраны =====
+function chooserView(){
+  const sv=savedHost(),code=urlCode();
+  let h=topbar()+'<div class="grid"><div class="col"><section class="panel hot"><h2>Я игрок</h2><p class="muted small" style="margin-bottom:10px">Введите код комнаты, который прислал ведущий.</p><div class="fields"><label>Код комнаты<input id="jcode" class="codein" maxlength="5" autocomplete="off" data-def="'+esc(code)+'" value="'+esc(code)+'" placeholder="K7M2Q"></label><button class="btn pri" data-act="p2pJoin">Подключиться</button></div></section></div>';
+  h+='<div class="col"><section class="panel"><h2>Я ведущий</h2><p class="muted small" style="margin-bottom:10px">Вы создаёте комнату и держите эту вкладку открытой всю игру: она считает итоги ночей.</p><div class="fields"><button class="btn pri" data-act="p2pHost">Создать комнату</button>'+(sv?'<button class="btn" data-act="p2pResume">Продолжить прошлую игру ('+esc(sv.code)+')</button>':'')+'</div></section></div></div>';
+  return h;
+}
+function playerLobby(){
+  const mine=S.lobby.find(x=>x.id===UID),banned=(S.ban||[]).includes(UID),j0=JOINS[UID],j=j0&&j0.code===S.code?j0:null;
+  const pre=(window.__p2p&&window.__p2p.code)||urlCode();
+  let h='';
+  if(banned)h+='<section class="panel"><h2>Вас нет в списке</h2><p>Ведущий убрал вас из списка. Напишите ему, если это ошибка.</p></section>';
+  else{
+    h+='<section class="panel hot"><h2>'+(mine?'Вы в игре':'Присоединяйтесь к игре')+'</h2>';
+    if(CAN_WRITE===false)h+='<p class="note" style="margin-bottom:12px">У вас нет права записи на этой странице. Попросите ведущего выдать доступ с правом взаимодействия.</p>';
+    h+='<div class="fields"><label>Код комнаты<input id="mycode" class="codein" maxlength="5" autocomplete="off" data-def="'+esc(j?j.code:pre)+'" value="'+esc(j?j.code:pre)+'" placeholder="K7M2Q"></label><label class="grow">Ваше имя<input id="myname" maxlength="24" data-def="'+esc(j?j.name:'')+'" value="'+esc(j?j.name:'')+'" placeholder="Как вас называть"></label><button class="btn pri" data-act="join">'+(j?'Изменить имя':'Войти в игру')+'</button></div>';
+    if(mine)h+='<p class="muted" style="margin-top:12px">Вы в списке как «'+esc(mine.name)+'». Ждите, пока ведущий начнёт игру, страница обновится сама.</p>';
+    else if(j)h+='<p class="muted" style="margin-top:12px">Имя отправлено. Вы появитесь в списке через пару секунд.</p>';
+    h+='</section>';
+  }
+  h+='<section class="panel"><h2>Уже в списке ('+S.lobby.length+')</h2>'+(S.lobby.length?'<div class="list">'+S.lobby.map((x,i)=>'<div class="row"><span class="seat">'+(i+1)+'</span><span class="pname">'+esc(x.name)+(x.id===UID?' <span class="muted">(вы)</span>':'')+'</span></div>').join('')+'</div>':'<p class="muted">Пока никого.</p>')+'</section>';
+  return topbar()+h;
+}
+H.join=async()=>{
+  const n=(val('myname')||'').trim().slice(0,24);
+  if(!n){toast('Введите имя',true);return}
+  const code=(val('mycode')||'').trim().toUpperCase();
+  if(code!==S.code){toast('Код комнаты не подошёл. Проверьте код у ведущего.',true);return}
+  const j={name:n,code,t:Date.now()};
+  await W('join/'+UID,j);JOINS[UID]=j;lastHTML='';render();toast('Имя отправлено');
+};
+function myCard(me){
+  const c=CARD,ro=ROLE[c.role];
+  let h='<section class="panel"><div class="fields" style="justify-content:space-between;align-items:center;margin-bottom:12px"><h2 style="margin:0">Ваша роль</h2><button class="btn sm ghost" data-act="hideCard">'+(HIDE?'Показать':'Скрыть')+'</button></div>';
+  if(HIDE)h+='<div class="cardback">Роль скрыта<br>№'+me.n+'</div>';
+  else{
+    h+='<div class="pcard '+ro.side+'"><div class="corner"><span>'+esc(ro.t[0])+'</span><span>'+ro.suit+'</span></div><div class="mid"><span class="big">'+ro.suit+'</span><span class="rname">'+esc(ro.t)+'</span><span class="side">'+(ro.side==='m'?'мафия':'город')+'</span><span class="num">Место №'+me.n+'</span></div><div class="corner br"><span>'+esc(ro.t[0])+'</span><span>'+ro.suit+'</span></div></div>';
+    h+='<p class="roledesc">'+esc(ro.d)+'</p>';
+    if(c.team&&c.team.length)h+='<p class="team"><b>Ваша команда:</b> '+c.team.map(x=>esc(tag(P(x.id)))+(x.role==='don'?' (дон)':'')).join(', ')+'</p>';
+  }
+  h+='</section>';
+  const inbox=(c.inbox||[]).slice().reverse();
+  if(['don','sheriff'].includes(c.role))h+='<section class="panel"><h2>Результаты проверок</h2>'+(inbox.length?'<div class="news">'+inbox.map(m=>'<p><b>Ночь '+m.round+'</b>'+esc(m.text)+'</p>').join('')+'</div>':'<p class="muted">Пока пусто. Ответ на ночную проверку появится здесь сразу.</p>')+'</section>';
+  return h;
+}
+H.hideCard=()=>{HIDE=!HIDE;lsSet('mf-hide',HIDE?'1':'0');lastHTML='';render()};
+function nightAct(){const a=act(UID);return a||{gid:S.gid,round:S.round}}
+H.nact=(d,el)=>{const a=Object.assign({},nightAct());a[d.f]=el.value;a.t=Date.now();NIGHT[UID]=a;lastHTML='';render();return W('night/'+UID,a)};
+function nightForm(me){
+  const c=CARD,role=c.role,ro=ROLE[role],al=alive();
+  if(intro()){
+    if(ro.side==='m')return '<p>Ознакомительная ночь. Познакомьтесь с командой: она указана на вашей карте. Этой ночью никто не погибает.</p>';
+    return '<p>Ознакомительная ночь. Город спит, мафия знакомится. Просто ждите утра.</p>';
+  }
+  const a=nightAct();let h='';
+  if(ro.side==='m'){
+    h+='<label>Кого убиваем этой ночью<select id="nk" data-chg="nact" data-f="kill">'+opts(al.filter(p=>p.id!==UID),a.kill||'')+'</select></label>';
+    const picks=c.mv&&c.mv.round===S.round?c.mv.picks:{};
+    const team=(c.team||[]).map(x=>P(x.id)).filter(p=>p&&p.alive);
+    if(team.length)h+='<div class="list" style="margin-top:10px">'+team.map(p=>'<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+(roleOf(p.id)==='don'||(c.team.find(x=>x.id===p.id)||{}).role==='don'?' (дон)':'')+'</span><span class="'+(picks[p.id]?'':'muted')+'">'+(picks[p.id]?'→ '+esc(tag(P(picks[p.id]))):'думает')+'</span></div>').join('')+'</div><p class="small muted" style="margin-top:6px">Жертвой станет тот, за кого больше голосов. При равенстве решает выбор дона.</p>';
+  }
+  if(role==='don'||role==='sheriff'){
+    const ans=(c.inbox||[]).find(m=>m.round===S.round&&m.kind==='check');
+    h+='<label style="margin-top:12px">'+(role==='don'?'Кого проверяем на шерифа':'Кого проверяем')+'<select id="nc" data-chg="nact" data-f="check"'+(ans?' disabled':'')+'>'+opts(al.filter(p=>p.id!==UID),ans?ans.target:(a.check||''))+'</select></label>';
+    h+=ans?'<p class="result" style="margin-top:10px">'+esc(ans.text)+'</p>':'<p class="small muted" style="margin-top:6px">Ответ придёт сразу после выбора. Изменить проверку нельзя.</p>';
+  }
+  if(role==='doctor'){
+    h+='<label>Кого лечим этой ночью<select id="nh" data-chg="nact" data-f="heal">'+opts(al,a.heal||'',p=>p.id===c.lastHeal?'лечили прошлой ночью':(p.id===UID&&c.selfUsed?'себя уже лечили':''))+'</select></label><p class="small muted" style="margin-top:6px">Выбор можно менять до утра.</p>';
+  }
+  if(role==='civ')h+='<p>Город спит. Выключите микрофон и ждите утра.</p>';
+  else if(ro.side!=='m'||role==='don')h+='';
+  if(role!=='civ'&&!(role==='don'||role==='sheriff'))h+=(a.kill||a.heal)?'<p class="small" style="margin-top:8px;color:var(--town)">Выбор отправлен.</p>':'';
+  return h;
+}
+H.nominate=async()=>{const id=val('pnom');if(!id){toast('Выберите игрока',true);return}const d={gid:S.gid,round:S.round,nom:id,t:Date.now()};DAY[UID]=d;lastHTML='';render();await W('day/'+UID,d);toast('Кандидат выставлен')};
+H.vote=async d=>{const v={gid:S.gid,round:S.round,vr:S.vr,target:d.id,t:Date.now()};VOTES[UID]=v;lastHTML='';render();await W('votes/'+UID,v)};
+function playerAction(me){
+  if(S.phase==='over')return '';
+  if(!me.alive)return '<section class="panel"><h2>Вы выбыли</h2><p class="muted">Можно наблюдать за игрой. Подсказывать живым нельзя.</p></section>';
+  if(S.phase==='night')return '<section class="panel hot"><h2>Ночь '+S.round+'</h2><div class="stack">'+nightForm(me)+'</div></section>';
+  if(S.phase==='day'){
+    const spk=S.spk>=0?P(S.order[S.spk]):null,mine=spk&&spk.id===UID;
+    let h='<section class="panel hot"><h2>День '+S.round+'</h2>';
+    h+=mine?'<p class="result" style="margin-bottom:12px">Ваша речь! Включите микрофон.</p>':'<p style="margin-bottom:12px">'+(spk?'Говорит '+esc(tag(spk)):'Ведущий скоро даст слово первому игроку.')+'</p>';
+    const d=dayAct(UID),acc=S.nomBy.find(x=>x.by===UID);
+    if(acc)h+='<p>Вы выставили <b>'+esc(tag(P(acc.target)))+'</b>.</p>';
+    else if(d&&d.nom)h+='<p class="muted">Кандидат отправлен ведущему.</p>';
+    else h+='<h3>Выставить кандидата</h3><p class="small muted" style="margin-bottom:8px">Можно выставить одного игрока за день.</p><div class="fields"><label class="grow">Игрок<select id="pnom">'+opts(alive().filter(p=>p.id!==UID),'')+'</select></label><button class="btn" data-act="nominate">Выставить</button></div>';
+    return h+'</section>';
+  }
+  if(S.phase==='vote'){
+    const v=VOTES[UID],cur=v&&v.gid===S.gid&&v.round===S.round&&v.vr===S.vr?v.target:'';
+    return '<section class="panel hot"><h2>Голосование</h2><p class="muted" style="margin-bottom:10px">За кого вы голосуете? Голос можно менять до конца голосования.</p><div class="vbtns">'+S.noms.map(id=>{const p=P(id);return '<button class="vbtn'+(cur===id?' on':'')+'" data-act="vote" data-id="'+id+'"><span class="seat">'+p.n+'</span>'+esc(p.name)+'</button>'}).join('')+'</div><div style="margin-top:14px">'+tallyHTML(tally())+'</div></section>';
+  }
+  if(S.phase==='result')return '<section class="panel hot"><h2>Итог дня '+S.round+'</h2><p class="result">'+esc(resultText())+'</p></section>';
+  return '';
+}
+function playerView(){
+  if(S.phase==='lobby')return playerLobby();
+  const me=P(UID);
+  if(!me)return topbar()+'<section class="panel hot" style="margin-bottom:20px"><h2>Вы наблюдатель</h2><p>Игра уже идёт, вас нет за столом. Можно следить за ходом игры.</p></section><div class="grid"><div class="col">'+(S.phase==='over'?overBanner():'')+newsPanel()+'</div><div class="col">'+playersPanel()+'</div></div>';
+  if(!CARD||CARD.gid!==S.gid)return topbar()+'<p class="muted">Загружаю вашу роль…</p>';
+  return topbar()+'<div class="grid"><div class="col">'+playerAction(me)+(S.phase==='over'?overBanner():'')+newsPanel()+'</div><div class="col">'+myCard(me)+playersPanel()+'</div></div>';
+}
+
+// ===== МУЗЫКА: синтезируется в браузере, у каждой фазы своя =====
+function createMusic(ctx,dest){
+  const hz=n=>440*Math.pow(2,(n-69)/12);
+  const R=(a,b)=>a+Math.random()*(b-a),pk=a=>a[Math.floor(Math.random()*a.length)];
+  const nb=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),nd=nb.getChannelData(0);
+  for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;
+  const noise=()=>{const s=ctx.createBufferSource();s.buffer=nb;s.loop=true;return s};
+  function tone(bus,t,n,type,v,a,d,cut){
+    const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+    o.type=type;o.frequency.value=typeof n==='number'&&n<200?hz(n):n;f.type='lowpass';
+    f.frequency.setValueAtTime(cut,t);f.frequency.exponentialRampToValueAtTime(Math.max(180,cut*.25),t+a+d);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+d);
+    o.connect(f);f.connect(g);g.connect(bus);o.start(t);o.stop(t+a+d+.05);
+  }
+  const piano=(b,t,n,v=.08,d=1.6)=>{tone(b,t,n,'triangle',v,.004,d,2600);tone(b,t,n+12,'sine',v*.3,.004,d*.5,3200)};
+  const bass=(b,t,n,v=.24,d=.55)=>{tone(b,t,n,'sine',v,.008,d,700);tone(b,t,n,'triangle',v*.35,.008,d*.6,500)};
+  const pluck=(b,t,n,v=.07,d=.5)=>tone(b,t,n,'sawtooth',v,.003,d,3000);
+  const nz=(b,t,type,fq,q,v,d)=>{const s=noise(),f=ctx.createBiquadFilter(),g=ctx.createGain();f.type=type;f.frequency.value=fq;f.Q.value=q;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(f);f.connect(g);g.connect(b);s.start(t,R(0,1.5));s.stop(t+d+.05)};
+  const brush=(b,t,v=.035)=>nz(b,t,'bandpass',2800,.8,v,.2);
+  const ride=(b,t,v=.02)=>nz(b,t,'highpass',7500,.5,v,.25);
+  const tick=(b,t,v=.025)=>nz(b,t,'highpass',5000,1,v,.03);
+  const thump=(b,t,v=.5,f=58)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.setValueAtTime(f*1.8,t);o.frequency.exponentialRampToValueAtTime(f,t+.12);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+.45);o.connect(g);g.connect(b);o.start(t);o.stop(t+.5)};
+  const bell=(b,t,n,v=.05)=>[1,2.76,5.4].forEach((m,i)=>tone(b,t,hz(n)*m,'sine',v/(i+1),.005,3.5/(i+1),8000));
+  const pad=(b,t,n,len,v=.05,type='sawtooth',cut=900)=>{[0,.006].forEach(dt=>{const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();o.type=type;o.frequency.value=hz(n)*(1+dt);f.type='lowpass';f.frequency.value=cut;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+len*.4);g.gain.linearRampToValueAtTime(0,t+len);o.connect(f);f.connect(g);g.connect(b);o.start(t);o.stop(t+len+.05)})};
+  const lfo=(param,rate,depth,t)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=rate;g.gain.value=depth;o.connect(g);g.connect(param);o.start(t);return o};
+
+  const scenes={
+    lobby:{title:'Лаунж-джаз у входа',dur:60/88/2, // свинг, ii–V–I, контрабас шагом
+      ch:[[53,57,60,64],[53,57,59,64],[52,55,59,62],[52,55,58,61]],root:[38,43,36,45],
+      step(b,t,i){
+        const bar=Math.floor(i/8)%4,s=i%8,sw=s%2?this.dur*.33:0,tt=t+sw,ch=this.ch[bar],r=this.root[bar],nr=this.root[(bar+1)%4];
+        if(s%2===0){const beat=s/2;bass(b,tt,beat===0?r:beat===1?r+(bar===2?4:3):beat===2?r+7:nr+(Math.random()<.5?1:-1));brush(b,tt)}
+        else ride(b,tt);
+        if((s===2||s===5)&&Math.random()<.75)ch.forEach((n,k)=>piano(b,tt+k*.012,n,.045,1.1));
+        if(s%2===0&&Math.random()<.22)piano(b,tt,pk(ch)+12+pk([0,2,-1]),.06,1.2);
+      }},
+    night:{title:'Ночной город',
+      start(b,t){const ns=[];[33,40].forEach((n,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();o.type='sawtooth';o.frequency.value=hz(n);f.type='lowpass';f.frequency.value=160;g.gain.value=.09;o.connect(f);f.connect(g);g.connect(b);o.start(t);ns.push(o,lfo(f.frequency,.06+i*.03,60,t))});this.nodes=ns;this.nb=t+2;this.nt=t+5},
+      dur:1,
+      step(b,t,i){tick(b,t,i%2?.012:.02);if(t>=this.nb){bell(b,t,pk([57,60,64,62,56]),.035);this.nb=t+R(6,11)}if(t>=this.nt){thump(b,t,R(.2,.35),R(45,55));this.nt=t+R(7,12)}}},
+    day:{title:'Сицилийский вальс',dur:60/100, // 3/4, мандолина тремоло
+      prog:[[45,[57,60,64]],[38,[53,57,62]],[40,[56,59,62,64]],[45,[57,60,64]],[41,[53,57,60]],[38,[53,57,62]],[40,[56,59,62,64]],[45,[57,60,64]]],
+      step(b,t,i){
+        const bar=Math.floor(i/3)%8,s=i%3,[r,ch]=this.prog[bar];
+        if(s===0){bass(b,t,r,.2,.6);if(Math.random()<.8){const m=pk(ch)+12;for(let k=0;k<this.dur*3/.085-1;k++)pluck(b,t+k*.085,k>this.dur*3/.085*.6?m+pk([0,-1,-2]):m,.022*(1-k*.008),.12)}}
+        else ch.slice(0,3).forEach(n=>pluck(b,t,n,.03,.35));
+      }},
+    vote:{title:'Сердцебиение',
+      start(b,t){const ns=[];[57,58].forEach((n,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();o.type='sawtooth';o.frequency.value=hz(n);f.type='lowpass';f.frequency.value=600;g.gain.value=.018;o.connect(f);f.connect(g);g.connect(b);o.start(t);ns.push(o,lfo(g.gain,6+i*.7,.016,t),lfo(f.frequency,.05,300,t))});this.nodes=ns;this.t0=t;this.nb=t},
+      dur:.25,
+      step(b,t){if(t>=this.nb){thump(b,t,.55,55);thump(b,t+.2,.32,50);this.nb=t+Math.max(.55,1.05-(t-this.t0)*.008)}}},
+    result:{title:'Тишина после приговора',
+      start(b,t){this.nx=t+.2},dur:1,
+      step(b,t){if(t>=this.nx){pad(b,t,45,9,.05,'triangle',700);pad(b,t,52,9,.035,'triangle',700);pad(b,t,60,9,.025,'triangle',900);bell(b,t+.5,pk([69,72,64]),.04);this.nx=t+9}}},
+    wint:{title:'Город празднует',
+      start(b,t){this.nx=t+.2},dur:.5,
+      step(b,t){if(t>=this.nx){[60,64,67,72,76,79].forEach((n,k)=>piano(b,t+k*.16,n,.08,2.6));[48,55,64].forEach(n=>pad(b,t+.9,n,6,.05,'triangle',1500));this.nx=t+8}}},
+    winm:{title:'Мафия правит',
+      start(b,t){this.nx=t+.2},dur:.5,
+      step(b,t){if(t>=this.nx){[33,45,48,52].forEach(n=>pad(b,t,n,7,.06,'sawtooth',500));[0,.9,1.8].forEach((d,k)=>thump(b,t+d,.65-k*.1,44-k*3));bell(b,t+2.4,pk([57,56]),.05);this.nx=t+9}}}
+  };
+  let cur=null,bus=null,timer=null;
+  function set(name){
+    const t=ctx.currentTime;
+    if(cur){const ob=bus,sc=cur;ob.gain.cancelScheduledValues(t);ob.gain.setValueAtTime(ob.gain.value,t);ob.gain.linearRampToValueAtTime(0,t+1.5);setTimeout(()=>{(sc.nodes||[]).forEach(o=>{try{o.stop()}catch(e){}});try{ob.disconnect()}catch(e){}},1800)}
+    clearInterval(timer);cur=null;bus=null;
+    if(!name||!scenes[name])return;
+    const sc=Object.assign({},scenes[name]);bus=ctx.createGain();bus.gain.setValueAtTime(0,t);bus.gain.linearRampToValueAtTime(1,t+1.5);bus.connect(dest);
+    if(sc.start)sc.start(bus,t+.05);cur=sc;
+    let nt=t+.1,i=0;
+    const pump=()=>{const lim=ctx.currentTime+1.2;while(nt<lim){try{sc.step(bus,nt,i)}catch(e){console.error(e)}i++;nt+=sc.dur}};
+    pump();timer=setInterval(pump,300);
+  }
+  return {set,title:n=>scenes[n]?scenes[n].title:''};
+}
+const SND={ctx:null,eng:null,master:null,on:false,want:lsGet('mf-music')==='1',vol:+(lsGet('mf-vol')||55),scene:null,min:lsGet('mf-sndmin')==='1'};
+function sndWanted(){
+  if(!SND.on)return null;
+  if(!S||MODE!=='ok')return 'lobby';
+  if(S.phase==='over')return S.winner==='m'?'winm':'wint';
+  return {lobby:'lobby',night:'night',day:'day',vote:'vote',result:'result'}[S.phase]||'lobby';
+}
+function soundSync(){if(!SND.eng)return;const w=sndWanted();if(w!==SND.scene){SND.scene=w;SND.eng.set(w)}sndUI()}
+function sndGain(){if(SND.master)SND.master.gain.value=Math.pow(SND.vol/100,2)*1.3+.0001}
+function sndEnsure(){
+  if(SND.ctx)return true;
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+  try{SND.ctx=new AC();SND.master=SND.ctx.createGain();const comp=SND.ctx.createDynamicsCompressor();SND.master.connect(comp);comp.connect(SND.ctx.destination);sndGain();SND.eng=createMusic(SND.ctx,SND.master);return true}catch(e){return false}
+}
+function sndSet(on){
+  if(on&&!sndEnsure()){toast('Этот браузер не умеет играть музыку',true);return}
+  SND.on=on;SND.want=on;lsSet('mf-music',on?'1':'0');
+  if(on){SND.ctx.resume();SND.scene='__';soundSync()}
+  else if(SND.eng){SND.eng.set(null);SND.scene=null;setTimeout(()=>{if(!SND.on)SND.ctx.suspend()},1700)}
+  sndUI();
+}
+function sndUI(){
+  let box=document.getElementById('snd');
+  if(!box){
+    box=document.createElement('div');box.id='snd';
+    box.innerHTML='<button id="sndbtn" type="button"></button><div class="trk"><b>Сейчас играет</b><span id="sndtrk"></span></div><input id="sndvol" type="range" min="0" max="100" aria-label="Громкость музыки"><button id="sndmin" type="button" title="Свернуть" aria-label="Свернуть панель музыки">&times;</button><button id="sndopen" type="button" title="Музыка" aria-label="Открыть панель музыки">&#9835;</button>';
+    document.body.appendChild(box);
+    document.getElementById('sndbtn').onclick=()=>sndSet(!SND.on);
+    document.getElementById('sndmin').onclick=()=>{SND.min=true;lsSet('mf-sndmin','1');sndUI()};
+    document.getElementById('sndopen').onclick=()=>{SND.min=false;lsSet('mf-sndmin','0');sndUI()};
+    document.getElementById('sndvol').oninput=e=>{SND.vol=+e.target.value;sndGain();lsSet('mf-vol',String(SND.vol))};
+  }
+  const b=document.getElementById('sndbtn');b.textContent=SND.on?'♪ Музыка: вкл':'♪ Музыка: выкл';b.className=SND.on?'on':'';
+  b.setAttribute('aria-pressed',SND.on?'true':'false');
+  box.classList.toggle('off',!SND.on);box.classList.toggle('min',!!SND.min);
+  const op=document.getElementById('sndopen');op.className=SND.on?'on':'';op.title=SND.on?'Музыка играет':'Музыка выключена';
+  document.getElementById('sndtrk').textContent=SND.eng&&SND.scene?SND.eng.title(SND.scene):'';
+  const v=document.getElementById('sndvol');if(document.activeElement!==v)v.value=SND.vol;
+}
+sndUI();
+// если музыка была включена в прошлый раз, она вернётся после первого нажатия на странице
+if(SND.want)document.addEventListener('pointerdown',function f(e){document.removeEventListener('pointerdown',f,true);if(!SND.on&&!(e.target&&e.target.id==='sndbtn'))sndSet(true)},true);
+
+// ===== ВЫБОР ЭКРАНА =====
+function view(){
+  if(MODE==='choose')return chooserView();
+  if(MODE==='connecting')return topbar()+'<section class="panel hot"><h2>Подключаюсь…</h2><p class="muted">'+esc(CONNMSG)+'</p></section>';
+  if(MODE==='boot')return topbar()+'<p class="muted">Подключаюсь к игре…</p>';
+  if(MODE==='nodb')return topbar()+'<section class="panel hot"><h2>Нет доступа к игре</h2><p>Не удалось подключиться к хранилищу игры. Обновите страницу.</p></section>';
+  if(MODE==='noid')return topbar()+'<section class="panel hot"><h2>Не удалось определить аккаунт</h2><p>Войдите в Claude и откройте ссылку ещё раз.</p></section>';
+  if(!S)return topbar()+(IS_HOST?hostCreate():'<section class="panel"><h2>Игра ещё не создана</h2><p class="muted">Подождите, пока ведущий её запустит. Страница обновится сама.</p></section>');
+  return IS_HOST?hostView():playerView();
+}
+let CONNMSG='';
+const urlCode=()=>{try{const m=((location.hash||'')+(location.search||'')).match(/[A-Za-z0-9]{5}/);return m?m[0].toUpperCase():''}catch(e){return ''}};
+function savedHost(){try{const d=JSON.parse(lsGet('mf-host')||'null');return d&&d.code&&d.store?d:null}catch(e){return null}}
+async function p2pEnter(sh,role){window.__p2p={role,code:sh.code};window.claude=sh;MODE='boot';await boot()}
+H.p2pHost=async()=>{
+  MODE='connecting';CONNMSG='Открываю комнату…';render();
+  const sh=makeShim('host',newCode());
+  try{await sh.startHost(null)}catch(e){MODE='choose';render();toast(e.message,true);return}
+  lsSet('mf-host','');await p2pEnter(sh,'host');
+};
+H.p2pResume=async()=>{
+  const sv=savedHost();if(!sv)return;
+  MODE='connecting';CONNMSG='Возвращаю прошлую игру…';render();
+  const sh=makeShim('host',sv.code);
+  try{await sh.startHost(sv)}catch(e){MODE='choose';render();toast(e.message,true);return}
+  await p2pEnter(sh,'host');
+};
+H.p2pJoin=async()=>{
+  const code=(val('jcode')||'').trim().toUpperCase();
+  if(code.length!==5){toast('Код состоит из 5 символов',true);return}
+  MODE='connecting';CONNMSG='Ищу комнату '+code+'…';render();
+  const sh=makeShim('player',code);
+  try{await sh.connectPlayer()}catch(e){MODE='choose';render();toast(e.message,true);return}
+  await p2pEnter(sh,'player');
+};
+boot();
+</script>
+
+</body></html>
