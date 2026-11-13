@@ -95,6 +95,7 @@ ol.howto{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 
 .news p{padding:8px 0;border-top:1px solid var(--line)}
 .news p:first-child{border-top:0}
+.chat{max-height:260px;overflow:auto}
 .news b{display:block;font:600 .74rem var(--f-body);color:var(--gold);text-transform:uppercase;letter-spacing:.08em}
 .result{font:700 1.15rem/1.35 var(--f-display);padding:12px 14px;border-radius:10px;background:rgba(0,0,0,.2);border-left:3px solid var(--gold)}
 
@@ -173,13 +174,13 @@ function canRead(path,uid){
   if(uid==='host')return true;
   const q=path.split('/'),c=q[0];
   if(c==='g'||c==='votes')return true;
-  if(c==='card'||c==='night'||c==='day'||c==='join')return q[1]===uid;
+  if(c==='card'||c==='night'||c==='day'||c==='join'||c==='chat')return q[1]===uid;
   return false;
 }
 function canWrite(path,uid){
   if(uid==='host')return true;
   const q=path.split('/');
-  return ['join','night','day','votes'].includes(q[0])&&q[1]===uid&&q.length===2;
+  return ['join','night','day','votes','chat'].includes(q[0])&&q[1]===uid&&q.length===2;
 }
 
 class MQ{
@@ -393,7 +394,7 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[
 const newCode=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<5;i++)s+=A[rnd(A.length)];return s};
 
 let db=null,user=null,UID=null,IS_HOST=false,CAN_WRITE=null,MODE='boot',COPYBOX='',HIDE=lsGet('mf-hide')==='1';
-let S=null,SE=null,CARDS={},CARD=null,JOINS={},NIGHT={},DAY={},VOTES={},LASTC={};
+let S=null,SE=null,CARDS={},CARD=null,JOINS={},NIGHT={},DAY={},VOTES={},LASTC={},CHAT={};
 const H={};
 const P=id=>S?S.players.find(p=>p.id===id):null;
 const tag=p=>p?'№'+p.n+' '+p.name:'?';
@@ -462,10 +463,12 @@ function sub(){
     db.collection('join').onSnapshot(q=>{const m={};q.docs.forEach(d=>{m[d.id]=d.data()});JOINS=m;syncLobby();sched()},onErr);
     db.collection('night').onSnapshot(snapMap(m=>{NIGHT=m}),onErr);
     db.collection('day').onSnapshot(snapMap(m=>{DAY=m}),onErr);
+    db.collection('chat').onSnapshot(snapMap(m=>{CHAT=m}),onErr);
   }else{
     db.doc('card/'+UID).onSnapshot(s=>{CARD=s.exists?clone(s.data()):null;sched()},onErr);
     db.doc('night/'+UID).onSnapshot(s=>{if(s.exists)NIGHT[UID]=s.data();sched()},onErr);
     db.doc('day/'+UID).onSnapshot(s=>{if(s.exists)DAY[UID]=s.data();sched()},onErr);
+    db.doc('chat/'+UID).onSnapshot(s=>{if(s.exists)CHAT[UID]=clone(s.data());sched()},onErr);
     db.doc('join/'+UID).onSnapshot(s=>{if(s.exists)JOINS[UID]=s.data();sched()},onErr);
   }
 }
@@ -531,6 +534,15 @@ async function hostReact(){
         const txt=r==='don'?(roleOf(t.id)==='sheriff'?tag(t)+' — шериф.':tag(t)+' — не шериф.'):(sideOf(t.id)==='m'?tag(t)+' — мафия.':tag(t)+' — мирный житель.');
         c.inbox.push({round:S.round,kind:'check',target:t.id,text:txt});cch=true;
       });
+    }
+    {
+      const maf=S.players.filter(p=>sideOf(p.id)==='m');
+      const all=[];
+      maf.forEach(p=>{const d=CHAT[p.id];if(!d||d.gid!==S.gid||!Array.isArray(d.msgs))return;d.msgs.slice(-80).forEach(m=>{if(m&&typeof m.text==='string'&&m.text.trim())all.push({from:p.id,text:m.text.trim().slice(0,240),t:+m.t||0,r:+m.r||0})})});
+      all.sort((a,b)=>a.t-b.t);
+      const merged=all.slice(-120);const mj=JSON.stringify(merged);
+      maf.forEach(p=>{const c=C[p.id];if(c&&JSON.stringify(c.chat||[])!==mj){c.chat=merged;cch=true}});
+      if(JSON.stringify(SE.mchat||[])!==mj){SE.mchat=merged;sched()}
     }
     if(S.phase==='day'){
       const by=S.nomBy.slice();
@@ -606,6 +618,7 @@ async function botTick(){
         if(r==='don'||r==='sheriff'){const c=others.filter(x=>r==='don'?sideOf(x.id)!=='m':true);if(c.length)a.check=pick(c).id}
         if(r==='doctor'){const c=al.filter(x=>x.id!==SE.lastHeal&&!(x.id===p.id&&SE.selfHeal));if(c.length)a.heal=pick(c).id}
         NIGHT[p.id]=a;await W('night/'+p.id,a);
+        if(ROLE[r].side==='m'&&a.kill){const t=P(a.kill),d=CHAT[p.id]&&CHAT[p.id].gid===S.gid?clone(CHAT[p.id]):{gid:S.gid,msgs:[]};d.msgs.push({text:pick(['Предлагаю №'+t.n+', слишком много знает.','Я за №'+t.n+'.','Давайте №'+t.n+', днём он на меня косился.','№'+t.n+', согласны?']),t:Date.now(),r:S.round});CHAT[p.id]=d;await W('chat/'+p.id,d)}
       }
     }
     if(S.phase==='day'&&S.spk>=0){
@@ -849,6 +862,8 @@ function hostNight(){
       h+='<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+' '+roleBadge(role)+'</span>'+st+'</div>';
     });
   }
+  const mc=(SE&&SE.mchat)||[];
+  h+='<h3 style="margin-top:14px">Чат мафии</h3>'+(mc.length?'<div class="news chat">'+mc.filter(m=>m.r===S.round).map(m=>'<p><b>'+esc(tag(P(m.from)))+'</b>'+esc(m.text)+'</p>').join('')+'</div>':'<p class="small muted">Мафия пока не писала.</p>');
   h+='<div class="fields" style="margin-top:14px"><button class="btn pri" data-act="morning">Наступает утро</button></div>';
   return h+'</section>';
 }
@@ -954,7 +969,7 @@ H.nact=(d,el)=>{const a=Object.assign({},nightAct());a[d.f]=el.value;a.t=Date.no
 function nightForm(me){
   const c=CARD,role=c.role,ro=ROLE[role],al=alive();
   if(intro()){
-    if(ro.side==='m')return '<p>Ознакомительная ночь. Познакомьтесь с командой: она указана на вашей карте. Этой ночью никто не погибает.</p>';
+    if(ro.side==='m')return '<p>Ознакомительная ночь. Познакомьтесь с командой: она указана на вашей карте. Поздоровайтесь в тайном чате ниже и договоритесь, как будете выбирать жертву. Этой ночью никто не погибает.</p>';
     return '<p>Ознакомительная ночь. Город спит, мафия знакомится. Просто ждите утра.</p>';
   }
   const a=nightAct();let h='';
@@ -962,7 +977,7 @@ function nightForm(me){
     h+='<label>Кого убиваем этой ночью<select id="nk" data-chg="nact" data-f="kill">'+opts(al.filter(p=>p.id!==UID),a.kill||'')+'</select></label>';
     const picks=c.mv&&c.mv.round===S.round?c.mv.picks:{};
     const team=(c.team||[]).map(x=>P(x.id)).filter(p=>p&&p.alive);
-    if(team.length)h+='<div class="list" style="margin-top:10px">'+team.map(p=>'<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+(roleOf(p.id)==='don'||(c.team.find(x=>x.id===p.id)||{}).role==='don'?' (дон)':'')+'</span><span class="'+(picks[p.id]?'':'muted')+'">'+(picks[p.id]?'→ '+esc(tag(P(picks[p.id]))):'думает')+'</span></div>').join('')+'</div><p class="small muted" style="margin-top:6px">Жертвой станет тот, за кого больше голосов. При равенстве решает выбор дона.</p>';
+    if(team.length)h+='<div class="list" style="margin-top:10px">'+team.map(p=>'<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+(roleOf(p.id)==='don'||(c.team.find(x=>x.id===p.id)||{}).role==='don'?' (дон)':'')+'</span><span class="'+(picks[p.id]?'':'muted')+'">'+(picks[p.id]?'→ '+esc(tag(P(picks[p.id]))):'думает')+'</span></div>').join('')+'</div><p class="small muted" style="margin-top:6px">Жертвой станет тот, за кого больше голосов. При равенстве решает выбор дона. Обсудить можно в тайном чате ниже.</p>';
   }
   if(role==='don'||role==='sheriff'){
     const ans=(c.inbox||[]).find(m=>m.round===S.round&&m.kind==='check');
@@ -978,6 +993,31 @@ function nightForm(me){
   return h;
 }
 H.nominate=async()=>{const id=val('pnom');if(!id){toast('Выберите игрока',true);return}const d={gid:S.gid,round:S.round,nom:id,t:Date.now()};DAY[UID]=d;lastHTML='';render();await W('day/'+UID,d);toast('Кандидат выставлен')};
+function chatList(list,me){
+  if(!list||!list.length)return '<p class="muted small">Пока тихо. Напишите команде первым.</p>';
+  return '<div class="news chat" id="chatbox">'+list.map(m=>{const p=P(m.from);return '<p><b>'+(m.r?'Ночь '+m.r+' · ':'')+esc(p?tag(p):'?')+(m.from===me?' (вы)':'')+(roleOf(m.from)==='don'||(CARD&&CARD.team||[]).some(x=>x.id===m.from&&x.role==='don')||(CARD&&CARD.role==='don'&&m.from===me)?' · дон':'')+'</b>'+esc(m.text)+'</p>'}).join('')+'</div>';
+}
+function chatPanel(me){
+  if(!CARD||ROLE[CARD.role].side!=='m')return '';
+  const canWrite=me.alive&&S.phase==='night';
+  let h='<section class="panel'+(S.phase==='night'?' hot':'')+'"><h2>Тайный чат мафии</h2><p class="small muted" style="margin-bottom:8px">Видит только ваша команда и ведущий.</p>'+chatList(CARD.chat,UID);
+  if(canWrite)h+='<div class="fields" style="margin-top:10px"><label class="grow">Сообщение<input id="mchat" maxlength="240" autocomplete="off" placeholder="Кого убираем?"></label><button class="btn pri" data-act="chatSend">Отправить</button></div>';
+  else h+='<p class="small muted" style="margin-top:8px">'+(me.alive?'Писать можно только ночью, когда город спит.':'Вы выбыли и больше не пишете в чат.')+'</p>';
+  return h+'</section>';
+}
+H.chatSend=async()=>{
+  const el=document.getElementById('mchat');const text=(el&&el.value||'').trim().slice(0,240);
+  if(!text)return;
+  const me=P(UID);if(!me||!me.alive||S.phase!=='night'){toast('Писать можно только ночью',true);return}
+  const d=CHAT[UID]&&CHAT[UID].gid===S.gid?clone(CHAT[UID]):{gid:S.gid,msgs:[]};
+  d.msgs.push({text,t:Date.now(),r:S.round});if(d.msgs.length>80)d.msgs=d.msgs.slice(-80);
+  CHAT[UID]=d;
+  if(CARD){CARD.chat=(CARD.chat||[]).concat({from:UID,text,t:Date.now(),r:S.round})}
+  el.value='';lastHTML='';render();
+  const e2=document.getElementById('mchat');if(e2)e2.focus();
+  await W('chat/'+UID,d);
+};
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target&&e.target.id==='mchat'){e.preventDefault();guard(H.chatSend)}});
 H.vote=async d=>{const v={gid:S.gid,round:S.round,vr:S.vr,target:d.id,t:Date.now()};VOTES[UID]=v;lastHTML='';render();await W('votes/'+UID,v)};
 function playerAction(me){
   if(S.phase==='over')return '';
@@ -1005,7 +1045,7 @@ function playerView(){
   const me=P(UID);
   if(!me)return topbar()+'<section class="panel hot" style="margin-bottom:20px"><h2>Вы наблюдатель</h2><p>Игра уже идёт, вас нет за столом. Можно следить за ходом игры.</p></section><div class="grid"><div class="col">'+(S.phase==='over'?overBanner():'')+newsPanel()+'</div><div class="col">'+playersPanel()+'</div></div>';
   if(!CARD||CARD.gid!==S.gid)return topbar()+'<p class="muted">Загружаю вашу роль…</p>';
-  return topbar()+'<div class="grid"><div class="col">'+playerAction(me)+(S.phase==='over'?overBanner():'')+newsPanel()+'</div><div class="col">'+myCard(me)+playersPanel()+'</div></div>';
+  return topbar()+'<div class="grid"><div class="col">'+playerAction(me)+chatPanel(me)+(S.phase==='over'?overBanner():'')+newsPanel()+'</div><div class="col">'+myCard(me)+playersPanel()+'</div></div>';
 }
 
 // ===== МУЗЫКА: синтезируется в браузере, у каждой фазы своя =====
