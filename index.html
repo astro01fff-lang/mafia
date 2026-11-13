@@ -435,7 +435,9 @@ function render(){
   const af=document.activeElement,fid=af&&af.id&&root.contains(af)?af.id:null;
   const ss=fid&&af.selectionStart!=null?[af.selectionStart,af.selectionEnd]:null;
   const sy=window.scrollY;
+  const cst=[...root.querySelectorAll('.chat')].map(b=>({bottom:b.scrollHeight-b.scrollTop-b.clientHeight<40,top:b.scrollTop}));
   root.innerHTML=html;
+  root.querySelectorAll('.chat').forEach((b,i)=>{const st=cst[i];b.scrollTop=(!st||st.bottom)?b.scrollHeight:st.top});
   Object.keys(keep).forEach(id=>{
     const e=document.getElementById(id);if(!e||e.dataset.live!==undefined)return;
     if(kdef[id]!==undefined&&keep[id]===kdef[id])return;
@@ -863,7 +865,7 @@ function hostNight(){
     });
   }
   const mc=(SE&&SE.mchat)||[];
-  h+='<h3 style="margin-top:14px">Чат мафии</h3>'+(mc.length?'<div class="news chat">'+mc.filter(m=>m.r===S.round).map(m=>'<p><b>'+esc(tag(P(m.from)))+'</b>'+esc(m.text)+'</p>').join('')+'</div>':'<p class="small muted">Мафия пока не писала.</p>');
+  h+='<h3 style="margin-top:14px">Чат мафии</h3>'+(mc.length?'<div class="news chat" id="hchatbox">'+mc.filter(m=>m.r===S.round).map(m=>'<p><b>'+esc(tag(P(m.from)))+'</b>'+esc(m.text)+'</p>').join('')+'</div>':'<p class="small muted">Мафия пока не писала.</p>');
   h+='<div class="fields" style="margin-top:14px"><button class="btn pri" data-act="morning">Наступает утро</button></div>';
   return h+'</section>';
 }
@@ -993,6 +995,12 @@ function nightForm(me){
   return h;
 }
 H.nominate=async()=>{const id=val('pnom');if(!id){toast('Выберите игрока',true);return}const d={gid:S.gid,round:S.round,nom:id,t:Date.now()};DAY[UID]=d;lastHTML='';render();await W('day/'+UID,d);toast('Кандидат выставлен')};
+function chatMerged(){
+  const base=(CARD&&CARD.chat||[]).slice();
+  const mine=CHAT[UID]&&S&&CHAT[UID].gid===S.gid?CHAT[UID].msgs||[]:[];
+  mine.forEach(m=>{if(!base.some(x=>x.from===UID&&x.t===m.t))base.push({from:UID,text:m.text,t:m.t,r:m.r})});
+  return base.sort((a,b)=>a.t-b.t);
+}
 function chatList(list,me){
   if(!list||!list.length)return '<p class="muted small">Пока тихо. Напишите команде первым.</p>';
   return '<div class="news chat" id="chatbox">'+list.map(m=>{const p=P(m.from);return '<p><b>'+(m.r?'Ночь '+m.r+' · ':'')+esc(p?tag(p):'?')+(m.from===me?' (вы)':'')+(roleOf(m.from)==='don'||(CARD&&CARD.team||[]).some(x=>x.id===m.from&&x.role==='don')||(CARD&&CARD.role==='don'&&m.from===me)?' · дон':'')+'</b>'+esc(m.text)+'</p>'}).join('')+'</div>';
@@ -1000,7 +1008,7 @@ function chatList(list,me){
 function chatPanel(me){
   if(!CARD||ROLE[CARD.role].side!=='m')return '';
   const canWrite=me.alive&&S.phase==='night';
-  let h='<section class="panel'+(S.phase==='night'?' hot':'')+'"><h2>Тайный чат мафии</h2><p class="small muted" style="margin-bottom:8px">Видит только ваша команда и ведущий.</p>'+chatList(CARD.chat,UID);
+  let h='<section class="panel'+(S.phase==='night'?' hot':'')+'"><h2>Тайный чат мафии</h2><p class="small muted" style="margin-bottom:8px">Видит только ваша команда и ведущий.</p>'+chatList(chatMerged(),UID);
   if(canWrite)h+='<div class="fields" style="margin-top:10px"><label class="grow">Сообщение<input id="mchat" maxlength="240" autocomplete="off" placeholder="Кого убираем?"></label><button class="btn pri" data-act="chatSend">Отправить</button></div>';
   else h+='<p class="small muted" style="margin-top:8px">'+(me.alive?'Писать можно только ночью, когда город спит.':'Вы выбыли и больше не пишете в чат.')+'</p>';
   return h+'</section>';
@@ -1012,7 +1020,6 @@ H.chatSend=async()=>{
   const d=CHAT[UID]&&CHAT[UID].gid===S.gid?clone(CHAT[UID]):{gid:S.gid,msgs:[]};
   d.msgs.push({text,t:Date.now(),r:S.round});if(d.msgs.length>80)d.msgs=d.msgs.slice(-80);
   CHAT[UID]=d;
-  if(CARD){CARD.chat=(CARD.chat||[]).concat({from:UID,text,t:Date.now(),r:S.round})}
   el.value='';lastHTML='';render();
   const e2=document.getElementById('mchat');if(e2)e2.focus();
   await W('chat/'+UID,d);
