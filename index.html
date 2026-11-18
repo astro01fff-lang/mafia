@@ -399,7 +399,7 @@ const H={};
 const P=id=>S?S.players.find(p=>p.id===id):null;
 const tag=p=>p?'№'+p.n+' '+p.name:'?';
 const alive=()=>S.players.filter(p=>p.alive);
-const intro=()=>S&&S.phase==='night'&&S.round===1&&S.cfg.peace;
+const intro=()=>false;
 const roleOf=id=>SE&&SE.roles?SE.roles[id]:null;
 const sideOf=id=>{const r=roleOf(id);return r?ROLE[r].side:null};
 const isManual=id=>/^m/.test(id);
@@ -569,7 +569,7 @@ async function hostReact(){
 // ===== ВЕДУЩИЙ: управление игрой =====
 function freshState(old){
   return {v:1,gid:'',code:old&&old.code?old.code:(window.__p2p?window.__p2p.code:newCode()),rev:old?old.rev:0,phase:'lobby',round:0,
-    cfg:old?old.cfg:{peace:true,nightSec:60,speech:60,voteSec:45,roles:null},
+    cfg:old?old.cfg:{peace:false,nightSec:60,speech:60,voteSec:45,roles:null},
     players:[],lobby:[],ban:old?(old.ban||[]):[],oseq:old?(old.oseq||0):0,news:[],timerEnd:null,
     order:[],spk:-1,noms:[],nomBy:[],nomOff:[],vr:1,result:null,winner:null,reveal:null};
 }
@@ -661,7 +661,7 @@ H.start=async()=>{
     C[p.id]={gid:s.gid,pid:p.id,n:p.n,role,team:m?s.players.filter(x=>x.id!==p.id&&ROLE[se.roles[x.id]].side==='m').map(x=>({id:x.id,role:se.roles[x.id]})):[],inbox:[],mv:null,lastHeal:null,selfUsed:false};
   });
   Object.assign(s,{phase:'night',round:1,news:[],timerEnd:Date.now()+s.cfg.nightSec*1000,order:[],spk:-1,noms:[],nomBy:[],nomOff:[],vr:1,result:null,winner:null,reveal:null});
-  s.news.push({round:1,text:'Игра началась: '+n+' игроков, мафии '+(r.mafia+r.don)+'. '+(s.cfg.peace?'Первая ночь ознакомительная: мафия знакомится, никто не погибает.':'Город засыпает.')});
+  s.news.push({round:1,text:'Игра началась: '+n+' игроков, мафии '+(r.mafia+r.don)+'. '+(false?'':'Город засыпает.')});
   se.hlog.push({round:1,text:'Роли розданы.'});
   await commit({S:s,SE:se,C});
 };
@@ -675,7 +675,7 @@ function winCheck(s,se){
 }
 H.morning=async()=>{
   const s=clone(S),se=clone(SE),C=clone(CARDS),r=s.round;
-  if(r===1&&s.cfg.peace){
+  if(false){
     s.news.push({round:r,text:'Утро. Ознакомительная ночь прошла, все живы.'});
   }else{
     const maf=s.players.filter(p=>p.alive&&ROLE[se.roles[p.id]].side==='m');
@@ -826,7 +826,7 @@ function hostLobby(){
   L+='<section class="panel"><h2>Роли</h2><div class="fields">'+inp('mafia','Мафия',8)+inp('don','Дон',1)+inp('sheriff','Шериф',1)+inp('doctor','Доктор',1)+'<label>Мирные<span class="mono" style="font-size:1.4rem;color:var(--fg)">'+Math.max(0,civ)+'</span></label></div>';
   L+='<p class="small muted" style="margin-top:10px">'+(S.cfg.roles?'Свой расклад. Рекомендация для '+Math.max(n,4)+' игроков: мафия '+rec.mafia+', дон '+rec.don+', шериф '+rec.sheriff+', доктор '+rec.doctor+'. <button class="btn sm ghost" data-act="autoRoles">Вернуть рекомендацию</button>':'Расклад подбирается сам под число игроков.')+'</p>';
   L+='<h3 style="margin-top:16px">Время</h3><div class="fields"><label>Ночь, сек<input type="number" id="c-night" data-chg="cfg" data-k="nightSec" min="15" value="'+S.cfg.nightSec+'" data-live></label><label>Речь, сек<input type="number" id="c-speech" data-chg="cfg" data-k="speech" min="15" value="'+S.cfg.speech+'" data-live></label><label>Голосование, сек<input type="number" id="c-vote" data-chg="cfg" data-k="voteSec" min="15" value="'+S.cfg.voteSec+'" data-live></label></div>';
-  L+='<label class="inl" style="margin-top:12px"><input type="checkbox" id="c-peace" data-chg="cfg" data-k="peace" '+(S.cfg.peace?'checked':'')+' data-live> Первая ночь ознакомительная (мафия знакомится, никто не погибает)</label>';
+  L+='<p class="small muted" style="margin-top:12px">С первой ночи мафия убивает, шериф и дон проверяют, доктор лечит. Днём город голосует уже после первой ночи.</p>';
   const warn=n<4?'Нужно минимум 4 игрока.':civ<1?'Особых ролей больше, чем игроков.':S.lobby.length>20?'В списке больше 20 человек: в игру попадут первые 20.':'';
   L+=(warn?'<p class="note" style="margin-top:12px">'+warn+'</p>':'')+'<div class="fields" style="margin-top:14px"><button class="btn pri" data-act="start"'+(n<4||civ<1?' disabled':'')+'>Раздать роли и начать</button></div></section></div>';
   let R='<div class="col"><section class="panel"><h2>Игроки ('+S.lobby.length+' из 20)</h2>';
@@ -877,7 +877,7 @@ function hostDay(){
   h+='<div class="fields"><button class="btn" data-act="speaker" data-dir="-1"'+(S.spk<=0?' disabled':'')+'>Назад</button><button class="btn pri" data-act="speaker" data-dir="1"'+(S.spk>=len-1?' disabled':'')+'>'+(S.spk<0?'Начать речи':'Следующий')+'</button>'+(cur?'<button class="btn ghost" data-act="restartSpeech">Время заново</button>':'')+'</div>';
   h+='<h3 style="margin-top:18px">Выставлены</h3>';
   h+=S.noms.length?'<div class="list">'+S.noms.map(id=>{const p=P(id);return '<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+'</span><button class="btn sm ghost" data-act="unnom" data-id="'+id+'">Снять</button></div>'}).join('')+'</div>':'<p class="muted">Пока никого. Игроки выставляют кандидатов кнопкой у себя.</p>';
-  h+='<div class="fields" style="margin-top:10px"><label class="grow">Выставить за игрока<select id="hnom">'+opts(alive().filter(p=>!S.noms.includes(p.id)),'')+'</select></label><button class="btn" data-act="hostNom">Выставить</button></div>';
+  h+='<details style="margin-top:10px"><summary class="small">Выставить кандидата вручную</summary><p class="small muted" style="margin:6px 0 8px">Только если игрок назвал кандидата голосом, но сам нажать не может (нет связи или играет без сайта).</p><div class="fields"><label class="grow">Кандидат<select id="hnom">'+opts(alive().filter(p=>!S.noms.includes(p.id)),'')+'</select></label><button class="btn" data-act="hostNom">Выставить</button></div></details>';
   h+='<div class="fields" style="margin-top:16px">'+(S.noms.length?'<button class="btn pri" data-act="toVote">Открыть голосование</button>':'<button class="btn pri" data-act="toNight">Никого не выставили, наступает ночь</button>')+'</div>';
   return h+'</section>';
 }
