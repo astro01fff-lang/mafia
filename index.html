@@ -399,7 +399,8 @@ const H={};
 const P=id=>S?S.players.find(p=>p.id===id):null;
 const tag=p=>p?'№'+p.n+' '+p.name:'?';
 const alive=()=>S.players.filter(p=>p.alive);
-const intro=()=>false;
+const intro=()=>S&&S.phase==='night'&&S.round===1&&S.cfg.peace;
+const meetDay=()=>S&&S.phase==='day'&&S.round===1&&S.cfg.peace;
 const roleOf=id=>SE&&SE.roles?SE.roles[id]:null;
 const sideOf=id=>{const r=roleOf(id);return r?ROLE[r].side:null};
 const isManual=id=>/^m/.test(id);
@@ -546,7 +547,7 @@ async function hostReact(){
       maf.forEach(p=>{const c=C[p.id];if(c&&JSON.stringify(c.chat||[])!==mj){c.chat=merged;cch=true}});
       if(JSON.stringify(SE.mchat||[])!==mj){SE.mchat=merged;sched()}
     }
-    if(S.phase==='day'){
+    if(S.phase==='day'&&!meetDay()){
       const by=S.nomBy.slice();
       Object.keys(DAY).forEach(id=>{
         const d=dayAct(id),p=P(id);if(!d||!d.nom||!p||!p.alive)return;
@@ -569,7 +570,7 @@ async function hostReact(){
 // ===== ВЕДУЩИЙ: управление игрой =====
 function freshState(old){
   return {v:1,gid:'',code:old&&old.code?old.code:(window.__p2p?window.__p2p.code:newCode()),rev:old?old.rev:0,phase:'lobby',round:0,
-    cfg:old?old.cfg:{peace:false,nightSec:60,speech:60,voteSec:45,roles:null},
+    cfg:old?old.cfg:{peace:true,nightSec:60,speech:60,voteSec:45,roles:null},
     players:[],lobby:[],ban:old?(old.ban||[]):[],oseq:old?(old.oseq||0):0,news:[],timerEnd:null,
     order:[],spk:-1,noms:[],nomBy:[],nomOff:[],vr:1,result:null,winner:null,reveal:null};
 }
@@ -623,7 +624,7 @@ async function botTick(){
         if(ROLE[r].side==='m'&&a.kill){const t=P(a.kill),d=CHAT[p.id]&&CHAT[p.id].gid===S.gid?clone(CHAT[p.id]):{gid:S.gid,msgs:[]};d.msgs.push({text:pick(['Предлагаю №'+t.n+', слишком много знает.','Я за №'+t.n+'.','Давайте №'+t.n+', днём он на меня косился.','№'+t.n+', согласны?']),t:Date.now(),r:S.round});CHAT[p.id]=d;await W('chat/'+p.id,d)}
       }
     }
-    if(S.phase==='day'&&S.spk>=0){
+    if(S.phase==='day'&&S.spk>=0&&!meetDay()){
       for(const p of bots){
         if(dayAct(p.id)||S.noms.length>=3||Math.random()<.85)continue;
         const o=al.filter(x=>x.id!==p.id);if(!o.length)continue;
@@ -661,7 +662,7 @@ H.start=async()=>{
     C[p.id]={gid:s.gid,pid:p.id,n:p.n,role,team:m?s.players.filter(x=>x.id!==p.id&&ROLE[se.roles[x.id]].side==='m').map(x=>({id:x.id,role:se.roles[x.id]})):[],inbox:[],mv:null,lastHeal:null,selfUsed:false};
   });
   Object.assign(s,{phase:'night',round:1,news:[],timerEnd:Date.now()+s.cfg.nightSec*1000,order:[],spk:-1,noms:[],nomBy:[],nomOff:[],vr:1,result:null,winner:null,reveal:null});
-  s.news.push({round:1,text:'Игра началась: '+n+' игроков, мафии '+(r.mafia+r.don)+'. '+(false?'':'Город засыпает.')});
+  s.news.push({round:1,text:'Игра началась: '+n+' игроков, мафии '+(r.mafia+r.don)+'. '+(s.cfg.peace?'Первая ночь ознакомительная: мафия знакомится, никто не погибает. Первый день тоже без голосования.':'Город засыпает.')});
   se.hlog.push({round:1,text:'Роли розданы.'});
   await commit({S:s,SE:se,C});
 };
@@ -675,8 +676,8 @@ function winCheck(s,se){
 }
 H.morning=async()=>{
   const s=clone(S),se=clone(SE),C=clone(CARDS),r=s.round;
-  if(false){
-    s.news.push({round:r,text:'Утро. Ознакомительная ночь прошла, все живы.'});
+  if(r===1&&s.cfg.peace){
+    s.news.push({round:r,text:'Утро. Ознакомительная ночь прошла, все живы. Сегодня день знакомства: только речи, без голосования.'});
   }else{
     const maf=s.players.filter(p=>p.alive&&ROLE[se.roles[p.id]].side==='m');
     const cnt={};maf.forEach(p=>{const a=act(p.id);const t=a&&a.kill&&s.players.find(x=>x.id===a.kill);if(t&&t.alive)cnt[t.id]=(cnt[t.id]||0)+1});
@@ -826,7 +827,7 @@ function hostLobby(){
   L+='<section class="panel"><h2>Роли</h2><div class="fields">'+inp('mafia','Мафия',8)+inp('don','Дон',1)+inp('sheriff','Шериф',1)+inp('doctor','Доктор',1)+'<label>Мирные<span class="mono" style="font-size:1.4rem;color:var(--fg)">'+Math.max(0,civ)+'</span></label></div>';
   L+='<p class="small muted" style="margin-top:10px">'+(S.cfg.roles?'Свой расклад. Рекомендация для '+Math.max(n,4)+' игроков: мафия '+rec.mafia+', дон '+rec.don+', шериф '+rec.sheriff+', доктор '+rec.doctor+'. <button class="btn sm ghost" data-act="autoRoles">Вернуть рекомендацию</button>':'Расклад подбирается сам под число игроков.')+'</p>';
   L+='<h3 style="margin-top:16px">Время</h3><div class="fields"><label>Ночь, сек<input type="number" id="c-night" data-chg="cfg" data-k="nightSec" min="15" value="'+S.cfg.nightSec+'" data-live></label><label>Речь, сек<input type="number" id="c-speech" data-chg="cfg" data-k="speech" min="15" value="'+S.cfg.speech+'" data-live></label><label>Голосование, сек<input type="number" id="c-vote" data-chg="cfg" data-k="voteSec" min="15" value="'+S.cfg.voteSec+'" data-live></label></div>';
-  L+='<p class="small muted" style="margin-top:12px">С первой ночи мафия убивает, шериф и дон проверяют, доктор лечит. Днём город голосует уже после первой ночи.</p>';
+  L+='<label class="inl" style="margin-top:12px"><input type="checkbox" id="c-peace" data-chg="cfg" data-k="peace" '+(S.cfg.peace?'checked':'')+' data-live> Ознакомительная ночь и день знакомства</label><p class="small muted" style="margin-top:4px">Ночь 1: мафия знакомится, никто не погибает, проверок нет. День 1: только речи, без голосования. Со второй ночи мафия убивает, доктор лечит, шериф и дон проверяют.</p>';
   const warn=n<4?'Нужно минимум 4 игрока.':civ<1?'Особых ролей больше, чем игроков.':S.lobby.length>20?'В списке больше 20 человек: в игру попадут первые 20.':'';
   L+=(warn?'<p class="note" style="margin-top:12px">'+warn+'</p>':'')+'<div class="fields" style="margin-top:14px"><button class="btn pri" data-act="start"'+(n<4||civ<1?' disabled':'')+'>Раздать роли и начать</button></div></section></div>';
   let R='<div class="col"><section class="panel"><h2>Игроки ('+S.lobby.length+' из 20)</h2>';
@@ -875,6 +876,7 @@ function hostDay(){
   const last=S.news[S.news.length-1];if(last)h+='<p class="result" style="margin-bottom:14px">'+esc(last.text)+'</p>';
   h+='<h3>Речи</h3><p style="margin-bottom:10px">'+(cur?'Говорит <b>'+esc(tag(cur))+'</b> ('+(S.spk+1)+' из '+len+')'+(next?'<span class="muted"> · следующий №'+next.n+'</span>':''):'Первым говорит <b>'+esc(tag(P(S.order[0])))+'</b>. Нажмите «Следующий», чтобы запустить его время.')+'</p>';
   h+='<div class="fields"><button class="btn" data-act="speaker" data-dir="-1"'+(S.spk<=0?' disabled':'')+'>Назад</button><button class="btn pri" data-act="speaker" data-dir="1"'+(S.spk>=len-1?' disabled':'')+'>'+(S.spk<0?'Начать речи':'Следующий')+'</button>'+(cur?'<button class="btn ghost" data-act="restartSpeech">Время заново</button>':'')+'</div>';
+  if(meetDay()){h+='<p class="note" style="margin-top:16px">День знакомства: игроки представляются, никого не выставляют и не выгоняют. Когда все выскажутся, начните ночь.</p><div class="fields" style="margin-top:12px"><button class="btn pri" data-act="toNight">Наступает ночь</button></div>';return h+'</section>'}
   h+='<h3 style="margin-top:18px">Выставлены</h3>';
   h+=S.noms.length?'<div class="list">'+S.noms.map(id=>{const p=P(id);return '<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+'</span><button class="btn sm ghost" data-act="unnom" data-id="'+id+'">Снять</button></div>'}).join('')+'</div>':'<p class="muted">Пока никого. Игроки выставляют кандидатов кнопкой у себя.</p>';
   h+='<details style="margin-top:10px"><summary class="small">Выставить кандидата вручную</summary><p class="small muted" style="margin:6px 0 8px">Только если игрок назвал кандидата голосом, но сам нажать не может (нет связи или играет без сайта).</p><div class="fields"><label class="grow">Кандидат<select id="hnom">'+opts(alive().filter(p=>!S.noms.includes(p.id)),'')+'</select></label><button class="btn" data-act="hostNom">Выставить</button></div></details>';
@@ -1034,6 +1036,7 @@ function playerAction(me){
     const spk=S.spk>=0?P(S.order[S.spk]):null,mine=spk&&spk.id===UID;
     let h='<section class="panel hot"><h2>День '+S.round+'</h2>';
     h+=mine?'<p class="result" style="margin-bottom:12px">Ваша речь! Включите микрофон.</p>':'<p style="margin-bottom:12px">'+(spk?'Говорит '+esc(tag(spk)):'Ведущий скоро даст слово первому игроку.')+'</p>';
+    if(meetDay())return h+'<p class="muted">День знакомства: представьтесь и послушайте других. Сегодня никого не выставляют и не выгоняют.</p></section>';
     const d=dayAct(UID),acc=S.nomBy.find(x=>x.by===UID);
     if(acc)h+='<p>Вы выставили <b>'+esc(tag(P(acc.target)))+'</b>.</p>';
     else if(d&&d.nom)h+='<p class="muted">Кандидат отправлен ведущему.</p>';
