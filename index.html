@@ -306,6 +306,7 @@ function makeShim(role,code){
   };
   return {
     code,role,
+    pending:p=>pend.has(p),
     use:async n=>{
       if(n==='db')return db;
       if(n==='user')return role==='host'?{isOwner:async()=>true,id:async()=>'host',can:async()=>true}:{isOwner:async()=>false,id:async()=>UIDX,can:async()=>true};
@@ -322,6 +323,18 @@ function makeShim(role,code){
       }
       NET.state='ok';netTouch();
       setInterval(()=>{refreshPeers();updNet()},5000);
+      const lastSync={};
+      setInterval(()=>{
+        const now=Date.now();
+        conns.forEach((c,uid)=>{
+          if(now-c.t>120000)return;
+          const docs=[...store.entries()].filter(e=>canRead(e[0],uid));
+          const j=JSON.stringify(docs),ls=lastSync[uid];
+          if(ls&&ls.j===j&&now-ls.t<3000)return;
+          lastSync[uid]={j,t:now};
+          sendTo(uid,{t:'snap',docs});
+        });
+      },1000);
     },
     async connectPlayer(){
       if(typeof WebSocket==='undefined')throw new Error('Этот браузер не поддерживает нужную связь. Откройте игру в Chrome.');
@@ -330,6 +343,7 @@ function makeShim(role,code){
         if(!m)return;
         if(m.t==='snap'){
           store.clear();(m.docs||[]).forEach(e=>store.set(e[0],e[1]));
+          pend.forEach((v,p)=>{const hv=store.has(p)?store.get(p):null;if(JSON.stringify(hv)===JSON.stringify(v.t==='set'?v.d:null))pend.delete(p)});
           pend.forEach((v,p)=>{if(v.t==='set')store.set(p,v.d);else store.delete(p)});
           ready=true;const w=waiters;waiters=[];w.forEach(f=>f());
           Object.keys(docL).forEach(fireDoc);Object.keys(colL).forEach(fireCol);
@@ -363,7 +377,7 @@ function makeShim(role,code){
         };
         cur.onclose=reconnect;
         setInterval(()=>{if(cur&&cur.open)upSend({t:'hi'})},25000);
-        setInterval(()=>{if(cur&&cur.open)pend.forEach(v=>upSend(v))},4000);
+        setInterval(()=>{if(cur&&cur.open)pend.forEach(v=>upSend(v))},1500);
       };
       let sawConn=false;
       for(let i=0;i<BROKERS.length;i++){
@@ -885,7 +899,8 @@ function hostDay(){
 }
 function hostVote(){
   const t=tally(),al=alive(),voted=al.filter(p=>VOTES[p.id]&&VOTES[p.id].gid===S.gid&&VOTES[p.id].round===S.round&&VOTES[p.id].vr===S.vr&&S.noms.includes(VOTES[p.id].target)).length;
-  let h='<section class="panel hot"><h2>Голосование'+(S.vr>1?' (переголосование)':'')+'</h2><p style="margin-bottom:10px">Проголосовали '+voted+' из '+al.length+'.</p>';
+  const nv=al.filter(p=>{const v=VOTES[p.id];return !(v&&v.gid===S.gid&&v.round===S.round&&v.vr===S.vr&&S.noms.includes(v.target))});
+  let h='<section class="panel hot"><h2>Голосование'+(S.vr>1?' (переголосование)':'')+'</h2><p style="margin-bottom:4px">Проголосовали '+voted+' из '+al.length+'.</p><p class="small muted" style="margin-bottom:10px">'+(nv.length?'Ещё не проголосовали: '+nv.map(p=>'№'+p.n).join(', ')+'. Подведите итог, когда все проголосуют.':'Все проголосовали.')+'</p>';
   h+=tallyHTML(t);
   const man=al.filter(p=>p.manual);
   if(man.length)h+='<h3 style="margin-top:14px">Голоса игроков без сайта</h3><div class="list">'+man.map(p=>{const v=VOTES[p.id];const cur=v&&v.gid===S.gid&&v.round===S.round&&v.vr===S.vr?v.target:'';return '<div class="row"><span class="seat">'+p.n+'</span><span class="grow">'+esc(p.name)+'</span><select id="mv-'+p.id+'" data-chg="mVote" data-id="'+p.id+'">'+opts(S.noms.map(P),cur)+'</select></div>'}).join('')+'</div>';
@@ -1027,7 +1042,7 @@ H.chatSend=async()=>{
   await W('chat/'+UID,d);
 };
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target&&e.target.id==='mchat'){e.preventDefault();guard(H.chatSend)}});
-H.vote=async d=>{const v={gid:S.gid,round:S.round,vr:S.vr,target:d.id,t:Date.now()};VOTES[UID]=v;lastHTML='';render();await W('votes/'+UID,v)};
+H.vote=async d=>{if(!S||S.phase!=='vote'||!S.noms.includes(d.id)){toast('Голосование уже закрыто',true);return}const v={gid:S.gid,round:S.round,vr:S.vr,target:d.id,t:Date.now()};VOTES[UID]=v;lastHTML='';render();await W('votes/'+UID,v)};
 function playerAction(me){
   if(S.phase==='over')return '';
   if(!me.alive)return '<section class="panel"><h2>Вы выбыли</h2><p class="muted">Можно наблюдать за игрой. Подсказывать живым нельзя.</p></section>';
@@ -1045,7 +1060,9 @@ function playerAction(me){
   }
   if(S.phase==='vote'){
     const v=VOTES[UID],cur=v&&v.gid===S.gid&&v.round===S.round&&v.vr===S.vr?v.target:'';
-    return '<section class="panel hot"><h2>Голосование</h2><p class="muted" style="margin-bottom:10px">За кого вы голосуете? Голос можно менять до конца голосования.</p><div class="vbtns">'+S.noms.map(id=>{const p=P(id);return '<button class="vbtn'+(cur===id?' on':'')+'" data-act="vote" data-id="'+id+'"><span class="seat">'+p.n+'</span>'+esc(p.name)+'</button>'}).join('')+'</div><div style="margin-top:14px">'+tallyHTML(tally())+'</div></section>';
+    const pend=window.claude&&window.claude.pending?window.claude.pending('votes/'+UID):false;
+    const st=!cur?'<p class="small muted" style="margin-top:10px">Вы ещё не проголосовали.</p>':pend?'<p class="small" style="margin-top:10px;color:var(--gold)">Ваш голос за №'+P(cur).n+' отправляется ведущему…</p>':'<p class="small" style="margin-top:10px;color:var(--town)">✓ Ведущий получил ваш голос за №'+P(cur).n+'.</p>';
+    return '<section class="panel hot"><h2>Голосование</h2><p class="muted" style="margin-bottom:10px">За кого вы голосуете? Голос можно менять до конца голосования.</p><div class="vbtns">'+S.noms.map(id=>{const p=P(id);return '<button class="vbtn'+(cur===id?' on':'')+'" data-act="vote" data-id="'+id+'"><span class="seat">'+p.n+'</span>'+esc(p.name)+'</button>'}).join('')+'</div>'+st+'<div style="margin-top:14px">'+tallyHTML(tally())+'</div></section>';
   }
   if(S.phase==='result')return '<section class="panel hot"><h2>Итог дня '+S.round+'</h2><p class="result">'+esc(resultText())+'</p></section>';
   return '';
